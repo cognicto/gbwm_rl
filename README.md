@@ -7,17 +7,17 @@ The modeling approach is grounded in the Heston stochastic volatility framework,
 In the Heston framework, asset prices and variance evolve according to the following stochastic differential equations:
 
 $$
-dS_t = r S_t \, dt + \sqrt{V_t}\, S_t \, dW_1(t)
+dS_t = r S_t \, dt + \sqrt{V_t}\ S_t \ dW_1(t)
 $$
 
 $$
-dV_t = \kappa (\theta - V_t)\, dt + \eta \sqrt{V_t}\, dW_2(t)
+dV_t = \kappa (\theta - V_t)\ dt + \eta \sqrt{V_t}\ dW_2(t)
 $$
 
 where the Brownian motions driving returns and volatility are correlated as:
 
 $$
-\mathbb{E}[dW_1 dW_2] = \rho \, dt, \quad \rho < 0
+\mathbb{E}[dW_1 dW_2] = \rho \ dt, \quad \rho < 0
 $$
 
 This correlation structure motivates the central design choice of this work: VIX and asset returns are driven by shared contemporaneous shocks, ensuring that VIX acts as a leading indicator of market stress within the same decision period.
