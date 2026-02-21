@@ -7,7 +7,7 @@ The modeling approach is grounded in the Heston stochastic volatility framework,
 In the Heston framework, asset prices and variance evolve according to the following stochastic differential equations:
 
 $$
-dS_t = r S_t \, dt + \sqrt{V_t}\ S_t \ dW_1(t)
+dS_t = r S_t \ dt + \sqrt{V_t}\ S_t \ dW_1(t)
 $$
 
 $$
@@ -29,7 +29,7 @@ This correlation structure motivates the central design choice of this work: VIX
 The Mean-Reverting Jump-Diffusion (MRJD) model is designed to capture both the smooth evolution of implied volatility and the sudden spikes observed during periods of market stress. The dynamics of the VIX process are specified by the following stochastic differential equation:
 
 $$
-dV_t = \kappa (\theta - V_t)\, dt + \sigma_v V_t^{\beta}\, dW_t + J\, dN_t
+dV_t = \kappa (\theta - V_t)\ dt + \sigma_v V_t^{\beta}\ dW_t + J\ dN_t
 $$
 
 where $\kappa$ denotes the mean-reversion speed, $\theta$ represents the long-run average level of VIX, $\sigma_v$ controls the magnitude of continuous volatility fluctuations, and $\beta$ determines the level dependence of the diffusion term. The jump component is governed by a Poisson process $N_t$ with intensity $\lambda$, and $J$ denotes the jump magnitude.
@@ -53,7 +53,7 @@ The jump term $J\, dN_t$ captures abrupt increases in implied volatility associa
 
 ### 2.3 Numerical and Stability Considerations
 
-To preserve numerical stability and empirical realism, simulated VIX levels are constrained to lie within the interval $[9\%, 85\%]$, consistent with historical extremes observed in the data. Jump magnitudes are restricted to be non-negative, reflecting the asymmetric nature of volatility shocks, which predominantly manifest as upward movements in uncertainty.
+To preserve numerical stability and empirical realism, simulated VIX levels are constrained to lie within the interval [9\%, 85\%], consistent with historical extremes observed in the data. Jump magnitudes are restricted to be non-negative, reflecting the asymmetric nature of volatility shocks, which predominantly manifest as upward movements in uncertainty.
 
 ## 3. Markov Regime-Switching (MRS) VIX Model
 
@@ -78,7 +78,7 @@ Each regime $r$ is characterized by regime-specific parameters, including the lo
 Conditional on the current regime, VIX evolves according to the stochastic differential equation:
 
 $$
-dV_t = \kappa_r (\theta_r - V_t)\, dt + \sigma_r\, dW_t
+dV_t = \kappa_r (\theta_r - V_t)\ dt + \sigma_r\ dW_t
 $$
 
 This formulation allows both the level and persistence of volatility to vary across market environments while preserving tractability.
@@ -104,7 +104,7 @@ Empirical evidence consistently documents a strong negative contemporaneous rela
 Let $z_t$ denote the standardized shock driving asset returns. The Brownian motion governing VIX innovations is constructed as:
 
 $$
-dW_t = -\rho \, z_t \sqrt{dt} + \sqrt{1 - \rho^2}\, dW_t^{\perp}
+dW_t = -\rho \ z_t \sqrt{dt} + \sqrt{1 - \rho^2}\ dW_t^{\perp}
 $$
 
 where $dW_t^{\perp}$ is an independent Brownian motion and $\rho < 0$ represents the correlation between returns and volatility changes.
