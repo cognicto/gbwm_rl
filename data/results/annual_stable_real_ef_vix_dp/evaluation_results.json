@@ -1,0 +1,146 @@
+{
+  "config": {
+    "num_simulations": 100000,
+    "num_iterations": 10,
+    "time_horizon": 192,
+    "beta": -0.05488605796741017,
+    "delta": 0.05317840342932408,
+    "policy_type": "hierarchical",
+    "encoder_type": "attention"
+  },
+  "results": {
+    "DP": {},
+    "Pure RL": {},
+    "Pure RL (VIX Market)": {},
+    "Sentiment RL": {},
+    "Sentiment RL (Stable)": {},
+    "DP (Annual)": {},
+    "DP (Annual Stable)": {
+      "1": {
+        "method_name": "DP (Annual Stable)",
+        "num_goals": 1,
+        "mean_reward": 22.10676,
+        "std_reward": 9.277226002550547,
+        "efficiency": 1.0,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.85026,
+        "mean_final_wealth": 133623.4610293335,
+        "std_final_wealth": 83770.57592475365,
+        "mean_vix_sentiment": 0.0
+      },
+      "2": {
+        "method_name": "DP (Annual Stable)",
+        "num_goals": 2,
+        "mean_reward": 25.60506,
+        "std_reward": 3.180009810739583,
+        "efficiency": 1.0,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.492405,
+        "mean_final_wealth": 315308.404914678,
+        "std_final_wealth": 165052.8752173723,
+        "mean_vix_sentiment": 0.0
+      },
+      "4": {
+        "method_name": "DP (Annual Stable)",
+        "num_goals": 4,
+        "mean_reward": 25.9818,
+        "std_reward": 0.6876545353591439,
+        "efficiency": 1.0,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.249825,
+        "mean_final_wealth": 790691.6235255818,
+        "std_final_wealth": 310244.34852744633,
+        "mean_vix_sentiment": 0.0
+      },
+      "8": {
+        "method_name": "DP (Annual Stable)",
+        "num_goals": 8,
+        "mean_reward": 26.0,
+        "std_reward": 0.0,
+        "efficiency": 1.0,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.125,
+        "mean_final_wealth": 1706127.153756941,
+        "std_final_wealth": 598222.8643012115,
+        "mean_vix_sentiment": 0.0
+      },
+      "16": {
+        "method_name": "DP (Annual Stable)",
+        "num_goals": 16,
+        "mean_reward": 245.27559,
+        "std_reward": 46.02319132950148,
+        "efficiency": 1.0,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.808686875,
+        "mean_final_wealth": 353009.79668908735,
+        "std_final_wealth": 291697.41460381215,
+        "mean_vix_sentiment": 0.0
+      }
+    },
+    "DP (Monthly Stable)": {},
+    "Pure RL (Annual)": {
+      "1": {
+        "method_name": "Pure RL (Annual)",
+        "num_goals": 1,
+        "mean_reward": 14.15024,
+        "std_reward": 12.94901339648701,
+        "efficiency": 0.64008656175758,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.54424,
+        "mean_final_wealth": 177425.05048192223,
+        "std_final_wealth": 115369.31872823602,
+        "mean_vix_sentiment": 0.0
+      },
+      "2": {
+        "method_name": "Pure RL (Annual)",
+        "num_goals": 2,
+        "mean_reward": 18.30756,
+        "std_reward": 2.8268793476906655,
+        "efficiency": 0.7149977387282044,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.50589,
+        "mean_final_wealth": 172778.87291146774,
+        "std_final_wealth": 50905.70750708955,
+        "mean_vix_sentiment": 0.0
+      },
+      "4": {
+        "method_name": "Pure RL (Annual)",
+        "num_goals": 4,
+        "mean_reward": 65.33188,
+        "std_reward": 16.68579562578902,
+        "efficiency": 2.514524782732528,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.853495,
+        "mean_final_wealth": 337682.3588333732,
+        "std_final_wealth": 363373.1283629791,
+        "mean_vix_sentiment": 0.0
+      },
+      "8": {
+        "method_name": "Pure RL (Annual)",
+        "num_goals": 8,
+        "mean_reward": 125.20342,
+        "std_reward": 30.708065069352713,
+        "efficiency": 4.815516153846153,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.86151,
+        "mean_final_wealth": 671079.4595186302,
+        "std_final_wealth": 911383.0405242972,
+        "mean_vix_sentiment": 0.0
+      },
+      "16": {
+        "method_name": "Pure RL (Annual)",
+        "num_goals": 16,
+        "mean_reward": 243.05357,
+        "std_reward": 44.87482011390241,
+        "efficiency": 0.9909407210069294,
+        "num_simulations": 100000,
+        "goal_success_rate": 0.791193125,
+        "mean_final_wealth": 1047856.9514587546,
+        "std_final_wealth": 1275417.337010563,
+        "mean_vix_sentiment": 0.0
+      }
+    },
+    "Sentiment RL Simple (Monthly)": {},
+    "Sentiment RL Advanced (Monthly)": {}
+  }
+}
