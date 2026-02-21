@@ -187,3 +187,67 @@ The Mean-Reverting Jump-Diffusion (MRJD) model provides a structurally grounded 
 A shared-shock correlation design ensures that asset returns and VIX respond simultaneously to common market innovations, maintaining theoretical consistency and enabling fair comparison across dynamic programming, pure reinforcement learning, and sentiment-aware reinforcement learning approaches. The proposed VIX-based return adjustments and sentiment feature construction translate volatility information into actionable signals while preserving stationarity and numerical stability.
 
 Together, these components form a coherent and extensible foundation for goals-based wealth management under uncertainty, enabling robust evaluation of volatility-sensitive strategies across both traditional optimization and modern learning-based frameworks.
+
+
+
+## 8. Notes on Reproducibility and Experiment Configuration
+
+To ensure reproducibility and consistency across experiments, the following design and execution considerations are enforced throughout this repository.
+
+### Deterministic Configuration
+
+- All experiments use fixed random seeds wherever stochastic components are involved.
+- When `--force_recompute` is enabled, cached results are ignored to prevent contamination from previous runs.
+- Simulation settings (market regime, number of goals, horizon) are fully controlled via command-line arguments.
+
+### Computational Considerations
+
+- Experiments with large Monte Carlo counts (e.g., 100,000 simulations) are computationally intensive.
+- Users are encouraged to begin with smaller simulation counts (e.g., 1,000–5,000) for debugging and validation.
+- Parallel execution is supported where available and automatically utilized if configured in the environment.
+
+### Directory Structure and Outputs
+
+- All experiment outputs are written to user-specified directories under `data/results/`.
+- Each run generates:
+  - Summary statistics
+  - Policy-level performance metrics
+  - Simulation-level logs for post-hoc analysis
+
+Results are never overwritten unless explicitly requested via `--force_recompute`.
+
+### Consistency Across Algorithms
+
+To enable fair comparison across Dynamic Programming (DP), Pure Reinforcement Learning (RL), and Sentiment-Aware Reinforcement Learning (Sentiment RL):
+
+- Identical simulated market paths are used across methods
+- Shared volatility and return shocks are applied consistently
+- Efficient frontiers are fixed within each experimental configuration
+
+This ensures that observed performance differences arise solely from algorithmic behavior rather than data or simulation artifacts.
+
+### Extensibility
+
+The experimental framework is modular and supports straightforward extensions, including:
+
+- Alternative volatility models
+- Additional market regimes
+- Different goal structures or investment horizons
+- New reward or constraint formulations
+
+New experiments can be added by extending the `experiments/` directory and registering the corresponding configuration options.
+
+### Annual Comparison in Stable Market Conditions
+
+This experiment evaluates annual performance under **stable market conditions** using **real efficient frontiers** and **sentiment-aware reinforcement learning**.
+
+#### Command
+
+```bash
+python experiments/evaluate_sentiment_rl.py \
+  --baseline_mode annual_stable \
+  --use_real_ef \
+  --force_recompute \
+  --num_simulations 100000 \
+  --goal_counts 1 2 4 8 16 \
+  --output_dir "data/results/annual_stable_real_ef_vix_dp"
