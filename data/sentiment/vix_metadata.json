@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-02-25T18:56:39.257284",
+  "record_count": 9103,
+  "date_range": {
+    "start": "1990-01-02",
+    "end": "2026-02-24"
+  },
+  "columns": [
+    "vix_open",
+    "vix_high",
+    "vix_low",
+    "vix_close",
+    "vix_volume",
+    "vix_normalized",
+    "vix_centered",
+    "vix_regime",
+    "vix_regime_numeric",
+    "vix_change_1d",
+    "vix_change_5d",
+    "vix_change_20d",
+    "vix_change_90d",
+    "vix_sma_5",
+    "vix_sma_20",
+    "vix_sma_50",
+    "vix_volatility_20d",
+    "vix_percentile"
+  ],
+  "source_info": {
+    "fetched_at": "2026-02-25T18:56:39.257281",
+    "start_date": "1990-01-01",
+    "end_date": "2026-02-25",
+    "is_historical": true,
+    "vix_weight": 1.0,
+    "news_weight": 0.0
+  }
+}
