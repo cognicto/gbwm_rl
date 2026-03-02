@@ -1086,9 +1086,9 @@ class SentimentRLEvaluator:
                 goals_taken = []
 
                 for step in range(self.config.time_horizon):
-                    # Build 2D state (NO VIX features)
+                    # Build 2D state (match training normalization)
                     normalized_time = step / self.config.time_horizon
-                    normalized_wealth = min(wealth / (initial_wealth * 10), 1.0)
+                    normalized_wealth = wealth / 10000000.0  # Same as training: wealth / max_wealth
                     state = np.array([normalized_time, normalized_wealth], dtype=np.float32)
 
                     # Get action from Pure RL agent
@@ -1424,9 +1424,9 @@ class SentimentRLEvaluator:
 
                     # Build 5D state - MUST match environment's _get_observation() method
                     # Environment: norm_time = current_month / total_months
-                    # Environment: norm_wealth = min(current_wealth / (initial_wealth * 10), 1.0)
+                    # Environment: norm_wealth = wealth / max_wealth (same as training)
                     normalized_time = step / self.config.time_horizon
-                    normalized_wealth = min(wealth / (initial_wealth * 10), 1.0)
+                    normalized_wealth = wealth / 10000000.0  # Same as training: wealth / max_wealth
                     state = np.array([normalized_time, normalized_wealth] + list(vix_features), dtype=np.float32)
 
                     # Get action from Sentiment RL agent
@@ -1554,10 +1554,11 @@ class SentimentRLEvaluator:
 
         # Define styles for all methods
         styles = {
-            "DP": {"color": "#1f77b4", "marker": "o", "linestyle": "-", "linewidth": 2.5},
-            "Pure RL": {"color": "#ff7f0e", "marker": "s", "linestyle": "--", "linewidth": 2.5},
-            "Pure RL (VIX Market)": {"color": "#d62728", "marker": "D", "linestyle": "-.", "linewidth": 2.5},
-            "Sentiment RL": {"color": "#2ca02c", "marker": "^", "linestyle": "-", "linewidth": 2.5}
+            "DP (Monthly)": {"color": "#1f77b4", "marker": "o", "linestyle": "-", "linewidth": 2.5, "label": "DP (Monthly)"},
+            "Pure RL (Monthly)": {"color": "#ff7f0e", "marker": "s", "linestyle": "--", "linewidth": 2.5, "label": "Pure RL (Monthly)"},
+            "Sentiment RL (Monthly)": {"color": "#2ca02c", "marker": "^", "linestyle": "-", "linewidth": 2.5, "label": "Sentiment RL (Monthly)"},
+            "DP (Annual)": {"color": "#9467bd", "marker": "o", "linestyle": ":", "linewidth": 2.5, "label": "DP (Annual)"},
+            "Pure RL (Annual)": {"color": "#8c564b", "marker": "s", "linestyle": ":", "linewidth": 2.5, "label": "Pure RL (Annual)"}
         }
 
         # Plot each method
@@ -1577,7 +1578,7 @@ class SentimentRLEvaluator:
                    linestyle=style["linestyle"],
                    linewidth=style["linewidth"],
                    markersize=10,
-                   label=method_name)
+                   label=style.get("label", method_name))
 
         # Formatting
         ax.set_xlabel("Number of Goals", fontsize=14, fontweight='bold')
@@ -3067,9 +3068,9 @@ class SentimentRLEvaluator:
                 goals_taken = []
                 
                 for year in range(self.config.years_horizon):
-                    # Build 2D state for annual environment
+                    # Build 2D state for annual environment (match training normalization)
                     normalized_time = year / self.config.years_horizon
-                    normalized_wealth = min(wealth / (initial_wealth * 10), 1.0)
+                    normalized_wealth = wealth / 10000000.0  # Same as training: wealth / max_wealth
                     state = np.array([normalized_time, normalized_wealth], dtype=np.float32)
                     
                     # Get action from Pure RL agent
@@ -3107,7 +3108,8 @@ class SentimentRLEvaluator:
                 final_wealths.append(wealth)
             
             # Calculate efficiency vs DP (Annual) - annual methods should compare to annual DP baseline
-            dp_annual_key = "DP (Annual)"
+            # Use appropriate DP key based on baseline mode
+            dp_annual_key = "DP (Annual Stable)" if self.config.baseline_mode == "annual_stable" else "DP (Annual)"
             
             # Check if DP results exist for this goal count
             if dp_annual_key in self.results and num_goals in self.results[dp_annual_key]:

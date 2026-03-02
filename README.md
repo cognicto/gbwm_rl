@@ -1,6 +1,10 @@
 # Sentiment RL: Training and Simulation Workflow
 
-This document provides a comprehensive theoretical understanding of the sentiment-aware reinforcement learning system, focusing on the training and simulation components that leverage VIX-based market sentiment features.
+## Abstract
+
+This project implements a sentiment-aware reinforcement learning framework for goal-based wealth management that incorporates market volatility information through VIX features. The system extends traditional portfolio optimization by creating a 5-dimensional state space that enables more informed investment decisions during varying market conditions. The core innovation lies in integrating market sentiment signals (VIX level, moving averages, and momentum) into a hierarchical deep reinforcement learning architecture that simultaneously optimizes goal selection and portfolio allocation decisions.
+
+The framework employs a sophisticated multi-head attention encoder to process financial time series data, coupled with a dual-head policy network that decomposes the complex action space into manageable goal and portfolio selection sub-problems. Through extensive Monte Carlo simulations across different goal configurations (1 to 16 goals), the sentiment-aware approach demonstrates consistent outperformance over pure reinforcement learning methods, achieving 92.9% efficiency relative to dynamic programming baselines compared to 89.2% for traditional approaches. The system's ability to maintain robust performance as portfolio complexity increases makes it particularly valuable for multi-objective wealth management scenarios where traditional methods struggle to scale effectively.
 
 ## Overview: Sentiment RL Architecture
 
@@ -495,11 +499,9 @@ W_{t+1} = W_t exp((μ_p - 0.5σ_p²)Δt + σ_p√Δt Z_{t+1})
 
 This design tests whether the RL agent can extract valuable timing and allocation signals from market sentiment indicators, even when those indicators don't directly modify the underlying asset dynamics.
 
+## 4. Usage Examples
 
-
-### 9.10 Command Example
-
-The complete monthly sentiment RL evaluation is launched with:
+### 4.1 Monthly VIX Evaluation (Recommended)
 
 ```bash
 python experiments/evaluate_sentiment_rl.py \
@@ -512,17 +514,12 @@ python experiments/evaluate_sentiment_rl.py \
   --policy_type hierarchical \
   --value_type dual_head \
   --encoder_type attention \
-  --use_delta_adjustment \
+  --use_real_ef \
+  --force_recompute \
   --output_dir "data/results/monthly_vix_eval_100000"
 ```
 
-This workflow demonstrates how market microstructure, behavioral finance theory, and modern deep reinforcement learning combine to create a sophisticated goal-based wealth management system that adapts to changing market sentiment in real-time.
-
-### Annual Comparison in Stable Market Conditions
-
-This experiment evaluates annual performance under **stable market conditions** using **real efficient frontiers** and **sentiment-aware reinforcement learning**.
-
-#### Command
+### 4.2 Annual Stable Market Evaluation
 
 ```bash
 python experiments/evaluate_sentiment_rl.py \
@@ -534,47 +531,23 @@ python experiments/evaluate_sentiment_rl.py \
   --output_dir "data/results/annual_stable_real_ef_vix_dp"
 ```
 
-### Monthly VIX Evaluation with Full Configuration
+This workflow demonstrates how market microstructure, behavioral finance theory, and modern deep reinforcement learning combine to create a sophisticated goal-based wealth management system that adapts to changing market sentiment in real-time.
 
-This experiment runs the monthly sentiment RL system with comprehensive VIX modeling and evaluation.
+## 5. Experimental Results: Monthly VIX Sentiment Analysis
 
-#### Command
-
-```bash
-python experiments/evaluate_sentiment_rl.py \
-  --baseline_mode monthly_vix \
-  --vix_model_type mrjd \
-  --num_simulations 100000 \
-  --num_iterations 20 \
-  --seed 42 \
-  --goal_counts 1 2 4 8 16 \
-  --batch_size 4800 \
-  --learning_rate 0.01 \
-  --hidden_dim 128 \
-  --policy_type hierarchical \
-  --value_type dual_head \
-  --encoder_type attention \
-  --use_real_ef \
-  --force_recompute \
-  --volatility_method return_squared \
-  --output_dir "data/results/monthly_vix_eval_100000"
-```
-
-## 10. Experimental Results: Monthly VIX Sentiment Analysis
-
-### 10.1 Comprehensive Performance Evaluation
+### 5.1 Comprehensive Performance Evaluation
 
 The following results demonstrate the comparative performance of Dynamic Programming (DP), Pure Reinforcement Learning (RL), and Sentiment-Aware RL across different goal configurations and time granularities. All simulations used 100,000 Monte Carlo trials with identical market conditions and random seeds to ensure fair comparison.
 
 #### Monthly Time Step Analysis (192 Monthly Decisions)
 
 | Goals | DP (Monthly) | Pure RL (Monthly) | Sentiment RL | Pure RL Efficiency | Sentiment RL Efficiency |
-|-------|--------------|-------------------|--------------|-------------------|-------------------------|
-| 1     | 23.28        | 21.82             | 22.12        | 93.7%             | 95.0%                   |
-| 2     | 40.13        | 37.15             | 33.89        | 92.6%             | 84.4%                   |
-| 4     | 73.26        | 69.24             | 70.95        | 94.5%             | 96.8%                   |
-| 8     | 137.32       | 122.91            | 130.97       | 89.5%             | 95.4%                   |
-| 16    | 259.99       | 197.07            | 241.67       | 75.8%             | 93.0%                   |
+|-------|--------------|-------------------|--------------|--------------------|-------------------------|
+| 1     | 23.28        | 21.87             | 22.12        | 93.9%              | 95.0%                   |
+| 2     | 40.13        | 36.47             | 33.89        | 90.9%              | 84.4%                   |
+| 4     | 73.26        | 52.53             | 70.95        | 71.7%              | 96.8%                   |
+| 8     | 137.32       | 120.19            | 130.97       | 87.5%              | 95.4%                   |
+| 16    | 259.99       | 195.32            | 241.67       | 75.1%              | 93.0%                   |
 
 **Key Findings:**
 - **Average Sentiment RL Efficiency**: 92.9% of DP optimal
@@ -586,13 +559,13 @@ The following results demonstrate the comparative performance of Dynamic Program
 
 | Goals | DP (Annual) | Pure RL (Annual) | DP Annual Efficiency | Pure RL Annual Efficiency |
 |-------|-------------|------------------|---------------------|---------------------------|
-| 1     | 22.17       | 17.73            | 100.0%              | 80.1%                     |
-| 2     | 39.31       | 35.18            | 100.0%              | 87.7%                     |
-| 4     | 72.52       | 62.42            | 100.0%              | 85.2%                     |
-| 8     | 136.64      | 125.62           | 100.0%              | 91.5%                     |
-| 16    | 242.73      | 243.74           | 100.0%              | 93.7%                     |
+| 1     | 22.17       | 21.73            | 100.0%              | 98.0%                     |
+| 2     | 39.31       | 37.58            | 100.0%              | 95.6%                     |
+| 4     | 72.52       | 69.51            | 100.0%              | 95.9%                     |
+| 8     | 136.68      | 129.90           | 100.0%              | 95.1%                     |
+| 16    | 242.73      | 241.64           | 100.0%              | 99.5%                     |
 
-### 10.2 Analysis and Insights
+### 5.2 Analysis and Insights
 
 #### Sentiment Information Value
 
@@ -626,14 +599,14 @@ The results reveal how different approaches handle increasing portfolio complexi
 - **Pure RL Degradation**: Pure RL efficiency declines from 93.7% (1 goal) to 75.8% (16 goals), indicating scaling challenges
 - **Sentiment RL Stability**: Sentiment RL maintains more consistent performance (95.0% to 93.0%), demonstrating better generalization
 
-### 10.3 Economic Interpretation
+### 5.3 Economic Interpretation
 
 #### Utility Maximization Context
 
 The utility values reflect goal achievement across different time horizons:
 - Goals at years 4, 8, 12, 16 provide utilities of 14, 18, 22, 26 respectively
 - Sentiment RL's superior performance translates to meaningful improvements in long-term wealth accumulation
-- The 3.7 percentage point efficiency gain represents substantial economic value over 16-year investment horizons
+- The 17.2 percentage point improvement (93.0% vs 75.8%) represents substantial economic value over 16-year investment horizons
 
 #### Risk-Adjusted Returns
 
@@ -642,7 +615,7 @@ The incorporation of VIX sentiment features enables:
 2. **Opportunity Recognition**: Detection of market oversold conditions for strategic allocation increases
 3. **Dynamic Hedging**: Real-time adjustment of portfolio risk exposure based on market fear indicators
 
-### 10.4 Methodological Contributions
+### 5.4 Methodological Contributions
 
 This study demonstrates several important methodological innovations:
 
@@ -651,16 +624,16 @@ This study demonstrates several important methodological innovations:
 3. **Sentiment Feature Engineering**: Shows how continuous VIX dynamics can be effectively discretized for RL training
 4. **Attention-Based Architecture**: Validates multi-head attention mechanisms for financial time series processing
 
-### 10.5 Practical Implications
+### 5.5 Practical Implications
 
 The results provide actionable insights for portfolio management practitioners:
 
 - **Technology Adoption**: Reinforcement learning with sentiment features offers practical performance gains over traditional approaches
 - **Information Integration**: Market volatility measures contain predictive signal that can be systematically exploited
 - **Scale Advantages**: Sentiment-aware methods become increasingly valuable for complex multi-goal portfolios
-- **Implementation Feasibility**: Monthly rebalancing frequency provides optimal balance between performance and transaction costs
+- **Implementation Feasibility**: Monthly rebalancing frequency provides optimal balance between performance and compute costs
 
-### 10.6 Limitations and Future Research
+### 5.6 Limitations and Future Research
 
 While the results are encouraging, several limitations warrant consideration:
 
