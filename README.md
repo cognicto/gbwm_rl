@@ -89,7 +89,7 @@ Calm Period         -0.25       -0.30         0.05         Low vol, stable
 Building Tension    -0.10        0.15         0.25         Rising uncertainty  
 Crisis Onset         1.50        0.80         0.75         VIX spiking rapidly
 Crisis Peak          2.25        1.80         0.15         High vol, stabilizing
-Recovery            0.75        1.20        -0.40         Fear subsiding
+Recovery             0.75        1.20        -0.40         Fear subsiding
 ```
 
 The **2-month window** and **single-period momentum** design prioritizes **reactivity over stability**, enabling the RL agent to quickly adapt to changing market volatility conditions in the monthly decision framework.
@@ -98,57 +98,150 @@ The **2-month window** and **single-period momentum** design prioritizes **react
 
 The **attention encoder** processes the 5D state through sophisticated neural attention mechanisms designed for financial time series analysis:
 
-#### Core Attention Mechanism
-```
-Attention(Q, K, V) = softmax(QK^T / √d_k) V
+#### Understanding the Attention Mechanism
+
+The attention mechanism fundamentally addresses a key challenge in financial decision-making: **dynamic feature importance**. Traditional neural networks apply fixed weights to input features, but financial markets require adaptive focus depending on current conditions. The attention mechanism solves this by learning to dynamically weight different state components based on their relevance to the current market context.
+
+In our implementation, self-attention treats each element of the 5D state vector as both a "query" (what information am I looking for?) and a "key-value" pair (what information can I provide?). The mechanism computes attention weights that represent how much each state feature should influence the final decision. For example, during market volatility spikes, the attention weights automatically increase for VIX-related features while reducing focus on time progression. This creates an **adaptive information filter** that emphasizes the most relevant market signals for each decision context, enabling the RL agent to make more informed portfolio allocation and goal selection decisions.
+
+#### Implementation Architecture
+```python
+class AttentionEncoder(nn.Module):
+    def __init__(self, input_dim=5, hidden_dim=64, num_heads=4):
+        # Input projection: 5D state → 64D embedding
+        self.input_projection = nn.Linear(input_dim, hidden_dim)
+        
+        # Multi-head self-attention
+        self.self_attention = nn.MultiheadAttention(
+            embed_dim=64, num_heads=4, batch_first=True
+        )
+        
+        # Layer normalization + feedforward
+        self.layer_norm = nn.LayerNorm(hidden_dim)
+        self.feed_forward = nn.Sequential(
+            nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 64)
+        )
 ```
 
-**Detailed Implementation**:
-- **Input Dimension**: 5D state vector → embedded to d_model = 128
-- **Query (Q)**: Linear transformation Q = s_t W_Q, seeking relevant patterns
-- **Key (K)**: Linear transformation K = s_t W_K, providing attention targets  
-- **Value (V)**: Linear transformation V = s_t W_V, containing actual information
-- **Scaling Factor**: √d_k = √128 ≈ 11.3 prevents attention saturation
+#### Step-by-Step Processing Flow
 
-#### Multi-Head Parallel Processing
+**Step 1: Input Projection**
+```python
+# 5D state [t/T, wealth, VIX_level, VIX_avg, VIX_momentum]
+projected = self.input_projection(state)  # (batch_size, 64)
 ```
-MultiHead(Q, K, V) = Concat(head_1, head_2, ..., head_h) W^O
-where head_i = Attention(Q W_i^Q, K W_i^K, V W_i^V)
+- Projects raw state features to 64-dimensional embedding space
+- Creates rich representation that captures feature interactions
+
+**Step 2: Attention Mechanism**
+```python
+# Add sequence dimension for self-attention
+seq_input = projected.unsqueeze(1)  # (batch_size, 1, 64)
+
+# Self-attention computes: Attention(Q, K, V) = softmax(QK^T/√d_k)V  
+attn_output, weights = self.self_attention(seq_input, seq_input, seq_input)
+```
+- **Query/Key/Value**: All derived from same projected state
+- **4 Heads**: Each head attends to different feature relationships
+- **Scaling**: √64 = 8 prevents attention saturation
+
+**Step 3: Residual Connections & Normalization**
+```python
+# Residual connection + layer normalization
+normed_attn = self.layer_norm(projected + attn_output.squeeze(1))
+
+# Feed-forward network with residual
+ff_output = self.feed_forward(normed_attn)
+encoded = self.final_norm(normed_attn + ff_output)  # (batch_size, 64)
 ```
 
-**Architecture Specifications**:
-- **Number of Heads**: h = 4 (parallel attention mechanisms)
-- **Head Dimension**: d_k = d_v = d_model / h = 32 per head
-- **Output Projection**: W^O ∈ R^{d_model × d_model}
-- **Residual Connections**: MultiHead output + input (skip connections)
-- **Layer Normalization**: Applied after residual connection
+#### Multi-Head Attention Benefits
 
-#### Financial State Processing
-**Head Specialization** (learned implicitly):
+**Head Specialization** (learned automatically):
 - **Head 1**: Time-wealth correlation patterns
-- **Head 2**: VIX level regime detection (low/medium/high volatility)
-- **Head 3**: VIX momentum and trend analysis
+- **Head 2**: VIX level regime detection (calm/volatile markets)
+- **Head 3**: VIX momentum and trend analysis  
 - **Head 4**: Cross-feature interactions (wealth-VIX relationships)
 
 **Attention Weight Interpretation**:
-```
-α_ij = softmax((q_i · k_j) / √d_k)
-```
-- High α when current state q_i strongly attends to pattern k_j
-- VIX spike patterns get high attention during market stress
-- Wealth-time patterns get attention near goal deadlines
+- High attention weights indicate important feature relationships
+- VIX features get higher attention during market stress periods
+- Time-wealth interactions strengthen near goal deadlines
+
+#### Why Self-Attention for Financial States?
+
+**Dynamic Feature Importance**: Unlike fixed encoders, attention weights adapt based on market conditions:
+- During calm markets: Higher attention to time/wealth features
+- During volatility spikes: Higher attention to VIX momentum
+- Near goal deadlines: Increased attention to wealth adequacy
+
+**Computational Efficiency**: Single attention operation captures all pairwise feature interactions without explicit feature engineering.
 
 #### Network Architecture Flow
+
 ```
-Input: s_t ∈ R^5 → Embedding → MultiHead Attention → LayerNorm → 
-       → Feedforward → LayerNorm → φ_attention(s_t) ∈ R^128
+5D State Input: [t/T, wealth, VIX_level, VIX_avg, VIX_momentum]
+                                    ↓
+                        Input Projection (5 → 64)
+                                    ↓
+                           64D Embedded State
+                    ↓         ↓         ↓         ↓
+              Head 1     Head 2     Head 3     Head 4
+            (16 dims)  (16 dims)  (16 dims)  (16 dims)
+                 ↓         ↓         ↓         ↓
+            Q₁,K₁,V₁   Q₂,K₂,V₂   Q₃,K₃,V₃   Q₄,K₄,V₄
+                 ↓         ↓         ↓         ↓
+         Attention₁  Attention₂  Attention₃  Attention₄
+                    ↓         ↓         ↓         ↓
+                        Concatenate & Project
+                                    ↓
+                          Residual Connection
+                                    ↓
+                           Layer Normalization
+                                    ↓
+                        Feed-Forward Network
+                                    ↓
+                         Final Layer Norm
+                                    ↓
+                    64D Encoded Representation
 ```
 
-**Implementation Details**:
-- **Position Encoding**: Time step information added to state embedding
-- **Dropout**: 0.1 dropout rate during training for regularization
-- **Activation**: ReLU in feedforward layers
-- **Gradient Clipping**: Max norm 0.5 to prevent exploding gradients
+#### Multi-Head Parallel Processing Explained
+
+The multi-head mechanism enables **parallel specialization** where each attention head learns to focus on different types of feature relationships:
+
+**Head Decomposition Process**:
+```python
+# Split 64D embedding into 4 heads of 16D each
+head_dim = hidden_dim // num_heads  # 64 // 4 = 16
+
+for head_i in range(4):
+    # Each head gets its own linear transformations
+    Q_i = W_Q_i @ projected_state  # (batch, 16)
+    K_i = W_K_i @ projected_state  # (batch, 16)  
+    V_i = W_V_i @ projected_state  # (batch, 16)
+    
+    # Compute attention for this head
+    attention_i = softmax(Q_i @ K_i.T / √16) @ V_i
+```
+
+**Parallel Learning Dynamics**:
+- **Head 1** might learn: *"When time is low AND wealth is high → focus on aggressive portfolios"*
+- **Head 2** might learn: *"When VIX spikes → prioritize defensive allocations regardless of wealth"*  
+- **Head 3** might learn: *"When VIX momentum is positive → reduce goal urgency weighting"*
+- **Head 4** might learn: *"Near goal deadlines → amplify wealth-to-goal feasibility signals"*
+
+**Information Integration**:
+```python
+# Concatenate all head outputs
+multi_head_output = concat([attention_1, attention_2, attention_3, attention_4])
+# Shape: (batch_size, 64) = 4 heads × 16 dims each
+
+# Final projection to combine head insights
+final_output = W_O @ multi_head_output + residual_connection
+```
+
+This parallel processing creates a **hierarchical feature analyzer** where each head specializes in different market regimes or decision contexts, then combines their insights for robust financial decision-making across varying market conditions.
 
 ### 1.3 Hierarchical Policy Architecture
 
