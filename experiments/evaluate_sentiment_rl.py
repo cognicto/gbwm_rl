@@ -1855,9 +1855,9 @@ class SentimentRLEvaluator:
             dp_monthly_result = self.results.get("DP (Monthly)", {}).get(num_goals)
 
             if dp_annual_result and pure_annual_result and dp_monthly_result:
-                # Calculate efficiency relative to monthly DP (since both use same seeds)
+                # Calculate efficiency relative to DP Annual baseline (correct approach)
                 dp_ann_eff = dp_annual_result.efficiency * 100 if dp_annual_result.efficiency <= 1.0 else dp_annual_result.efficiency
-                pure_ann_eff = (pure_annual_result.mean_reward / dp_monthly_result.mean_reward) * 100
+                pure_ann_eff = pure_annual_result.efficiency * 100 if pure_annual_result.efficiency <= 1.0 else pure_annual_result.efficiency
 
                 print(f"{num_goals:<6} | "
                       f"{dp_annual_result.mean_reward:<12.2f} | "
@@ -1882,8 +1882,8 @@ class SentimentRLEvaluator:
                 efficiencies_pure.append(pure_result.efficiency * 100)
             if sent_result:
                 efficiencies_sent.append(sent_result.efficiency * 100)
-            if pure_annual_result and dp_monthly_result:
-                efficiencies_pure_annual.append((pure_annual_result.mean_reward / dp_monthly_result.mean_reward) * 100)
+            if pure_annual_result:
+                efficiencies_pure_annual.append(pure_annual_result.efficiency * 100 if pure_annual_result.efficiency <= 1.0 else pure_annual_result.efficiency)
 
         if efficiencies_pure and efficiencies_sent:
             print(f"\nAVERAGE MONTHLY EFFICIENCY:")
@@ -1893,7 +1893,7 @@ class SentimentRLEvaluator:
 
         if efficiencies_pure_annual:
             print(f"\nAVERAGE ANNUAL EFFICIENCY:")
-            print(f"  Pure RL (Annual):     {np.mean(efficiencies_pure_annual):.1f}% of Monthly DP baseline")
+            print(f"  Pure RL (Annual):     {np.mean(efficiencies_pure_annual):.1f}% of DP Annual baseline")
 
         print("=" * 100)
 

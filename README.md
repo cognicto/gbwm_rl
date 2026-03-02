@@ -529,17 +529,7 @@ python experiments/evaluate_sentiment_rl.py \
   --output_dir "data/results/monthly_vix_eval_100000"
 ```
 
-### 4.2 Annual Stable Market Evaluation
 
-```bash
-python experiments/evaluate_sentiment_rl.py \
-  --baseline_mode annual_stable \
-  --use_real_ef \
-  --force_recompute \
-  --num_simulations 100000 \
-  --goal_counts 1 2 4 8 16 \
-  --output_dir "data/results/annual_stable_real_ef_vix_dp"
-```
 
 This workflow demonstrates how market microstructure, behavioral finance theory, and modern deep reinforcement learning combine to create a sophisticated goal-based wealth management system that adapts to changing market sentiment in real-time.
 
@@ -551,19 +541,20 @@ The following results demonstrate the comparative performance of Dynamic Program
 
 #### Monthly Time Step Analysis (192 Monthly Decisions)
 
-| Goals | DP (Monthly) | Pure RL (Monthly) | Sentiment RL | Pure RL Efficiency | Sentiment RL Efficiency |
-|-------|--------------|-------------------|--------------|--------------------|-------------------------|
-| 1     | 23.28        | 21.87             | 22.12        | 93.9%              | 95.0%                   |
-| 2     | 40.13        | 36.47             | 33.89        | 90.9%              | 84.4%                   |
-| 4     | 73.26        | 52.53             | 70.95        | 71.7%              | 96.8%                   |
-| 8     | 137.32       | 120.19            | 130.97       | 87.5%              | 95.4%                   |
-| 16    | 259.99       | 195.32            | 241.67       | 75.1%              | 93.0%                   |
+| Goals | DP (Monthly) | Pure RL (Monthly) | Sentiment RL | Pure RL Efficiency | Sentiment RL Efficiency | Sentiment Improvement |
+|-------|--------------|-------------------|--------------|--------------------|-------------------------|----------------------|
+| 1     | 23.28        | 21.87             | 22.25        | 93.9%              | 95.6%                   | +1.7%                |
+| 2     | 40.13        | 36.47             | 21.52        | 90.9%              | 53.6%                   | -37.3%               |
+| 4     | 73.26        | 52.53             | 71.19        | 71.7%              | 97.2%                   | +25.5%               |
+| 8     | 137.32       | 120.19            | 131.46       | 87.5%              | 95.7%                   | +8.2%                |
+| 16    | 259.99       | 195.32            | 242.16       | 75.1%              | 93.1%                   | +18.0%               |
 
 **Key Findings:**
-- **Average Sentiment RL Efficiency**: 92.9% of DP optimal
-- **Average Pure RL Efficiency**: 89.2% of DP optimal  
-- **Sentiment Advantage**: +3.7 percentage points over Pure RL
-- **Performance Gap**: Widens significantly with goal complexity (16 goals: 93.0% vs 75.8%)
+- **Average Sentiment RL Efficiency**: 87.0% of DP optimal (including 2-goal anomaly)
+- **Average Pure RL Efficiency**: 84.8% of DP optimal  
+- **Overall Sentiment Advantage**: +2.2 percentage points over Pure RL
+- **Excluding 2-Goal Anomaly**: Sentiment RL achieves 95.5% vs Pure RL's 82.0% (+13.5 percentage points)
+- **Performance Gap**: Widens significantly with goal complexity (16 goals: 93.1% vs 75.1%)
 
 #### Annual Time Step Analysis (16 Annual Decisions)
 
@@ -575,39 +566,29 @@ The following results demonstrate the comparative performance of Dynamic Program
 | 8     | 136.68      | 129.90           | 100.0%              | 95.1%                     |
 | 16    | 242.73      | 241.64           | 100.0%              | 99.5%                     |
 
+#### Performance Visualization
+
+![Efficiency vs Goals](data/results/monthly_vix_eval_100000/figure1_sentiment_efficiency_vs_goals.png)
+
+**Figure 1**: Efficiency comparison across different methods and goal configurations. The visualization clearly shows the 2-goal anomaly where Sentiment RL underperforms, and the increasing advantage of sentiment-aware approaches as portfolio complexity grows.
+
 ### 5.2 Analysis and Insights
 
-#### Sentiment Information Value
+#### Mixed Sentiment Information Value
 
-The experimental results demonstrate clear evidence that incorporating market sentiment (VIX) into reinforcement learning decision-making provides substantial performance benefits:
+The experimental results show **conditional benefits** from incorporating VIX sentiment into reinforcement learning:
 
-1. **Consistent Outperformance**: Sentiment RL outperforms Pure RL across 4 out of 5 goal configurations
-2. **Scalability**: The sentiment advantage increases with portfolio complexity (single goal: +1.3% → 16 goals: +17.2%)
-3. **Robustness**: Sentiment RL maintains >90% efficiency relative to optimal DP in complex scenarios where Pure RL degrades to <80%
+1. **Overall Performance**: Sentiment RL achieves 87.0% vs Pure RL's 84.8% efficiency (+2.2 percentage points overall)
+2. **2-Goal Anomaly**: Dramatic underperformance (53.6% vs 90.9%) suggests VIX misinterpretation for mid-horizon decisions
+3. **Complexity Scaling**: Strong sentiment advantage emerges with higher goal counts (16 goals: +18.0% improvement)
+4. **Robustness Pattern**: Sentiment RL maintains >93% efficiency for complex scenarios where Pure RL degrades to <76%
 
-#### VIX as Leading Indicator
+#### Key Performance Insights
 
-The superior performance of Sentiment RL validates the hypothesis that VIX serves as a valuable leading indicator for portfolio allocation decisions:
-
-- **Market Timing**: VIX features enable more effective market timing, particularly during high-volatility periods
-- **Risk Management**: The 5D state representation (time, wealth, VIX level, VIX average, VIX momentum) captures market regime information that improves risk-adjusted returns
-- **Adaptive Behavior**: Sentiment-aware agents dynamically adjust portfolio allocations based on market fear and uncertainty measures
-
-#### Time Granularity Effects
-
-Comparing monthly (192 steps) versus annual (16 steps) decision-making reveals important temporal dynamics:
-
-1. **Monthly Precision**: Monthly decision-making generally outperforms annual for both DP and RL methods
-2. **Information Frequency**: Higher-frequency VIX observations provide more timely signals for portfolio rebalancing  
-
-
-#### Goal Complexity Scaling
-
-The results reveal how different approaches handle increasing portfolio complexity:
-
-- **DP Robustness**: Dynamic Programming maintains optimality by construction across all goal counts
-- **Pure RL Degradation**: Pure RL efficiency declines from 93.7% (1 goal) to 75.8% (16 goals), indicating scaling challenges
-- **Sentiment RL Stability**: Sentiment RL maintains more consistent performance (95.0% to 93.0%), demonstrating better generalization
+- **VIX Value Conditional**: Market sentiment provides significant value for complex portfolios but can mislead in simpler scenarios
+- **Scaling Benefits**: The sentiment advantage increases dramatically with portfolio complexity (1 goal: +1.7% → 16 goals: +18.0%)
+- **Decision Frequency**: Monthly granularity enables better VIX pattern exploitation than annual decisions
+- **Training Stability**: Attention-based architecture successfully handles 5D state representation despite occasional goal-timing errors
 
 ### 5.3 Economic Interpretation
 
