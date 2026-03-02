@@ -1,0 +1,14 @@
+{
+  "method_name": "Sentiment RL (Monthly)",
+  "num_goals": 16,
+  "mean_reward": 242.16428,
+  "std_reward": 60.02037863993861,
+  "efficiency": 0.9314301662036523,
+  "num_simulations": 100000,
+  "goal_success_rate": 0.858580625,
+  "mean_final_wealth": 927094.9684938006,
+  "std_final_wealth": 1895751.0269955557,
+  "mean_vix_sentiment": 0.006554314401000738,
+  "_cache_timestamp": "2026-03-02T16:28:11.955680",
+  "_config_hash": "sentiment_rl_monthly_16goals_100000sims_a4c33365"
+}
