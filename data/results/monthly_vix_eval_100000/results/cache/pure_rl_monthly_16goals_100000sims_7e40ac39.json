@@ -1,0 +1,14 @@
+{
+  "method_name": "Pure RL (Monthly)",
+  "num_goals": 16,
+  "mean_reward": 195.32006,
+  "std_reward": 44.83118715354747,
+  "efficiency": 0.7512544622547443,
+  "num_simulations": 100000,
+  "goal_success_rate": 0.7370675,
+  "mean_final_wealth": 177012.1618764823,
+  "std_final_wealth": 217075.52953456627,
+  "mean_vix_sentiment": 0.0,
+  "_cache_timestamp": "2026-03-02T10:22:05.127998",
+  "_config_hash": "pure_rl_monthly_16goals_100000sims_7e40ac39"
+}

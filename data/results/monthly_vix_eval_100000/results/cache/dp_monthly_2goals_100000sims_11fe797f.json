@@ -1,0 +1,14 @@
+{
+  "method_name": "DP (Monthly)",
+  "num_goals": 2,
+  "mean_reward": 40.13088,
+  "std_reward": 8.872717195177586,
+  "efficiency": 1.0,
+  "num_simulations": 100000,
+  "goal_success_rate": 0.90948,
+  "mean_final_wealth": 140435.65248612376,
+  "std_final_wealth": 93442.50214575727,
+  "mean_vix_sentiment": 0.0,
+  "_cache_timestamp": "2026-02-27T15:41:53.276232",
+  "_config_hash": "dp_monthly_2goals_100000sims_11fe797f"
+}

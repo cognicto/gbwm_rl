@@ -1,0 +1,14 @@
+{
+  "method_name": "DP (Annual)",
+  "num_goals": 16,
+  "mean_reward": 242.73299,
+  "std_reward": 37.61997176580413,
+  "efficiency": 1.0,
+  "num_simulations": 100000,
+  "goal_success_rate": 0.8396,
+  "mean_final_wealth": 319099.8598270006,
+  "std_final_wealth": 317874.68276744854,
+  "mean_vix_sentiment": 0.0,
+  "_cache_timestamp": "2026-02-27T15:16:42.701495",
+  "_config_hash": "dp_annual_16goals_100000sims_b3a171f9"
+}
