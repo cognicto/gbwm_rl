@@ -208,18 +208,6 @@ From this shared foundation, two specialized neural pathways emerge. The goal he
 **Coordinated Action Sampling**
 The final innovation lies in coordinated probability-based action selection. Rather than making independent decisions, the system generates probability distributions for both goal and portfolio choices, then samples coordinated actions that maintain consistency between strategic intentions and tactical execution. This probabilistic approach enables both exploration during training and confident execution during deployment.
 
-#### Advanced Hierarchical Reasoning
-
-For complex market scenarios requiring sophisticated hierarchical reasoning, the system supports **dual-pathway processing** where strategic and tactical considerations receive separate computational treatment before integration.
-
-**Strategic Processing Pathway**
-This pathway focuses on long-term market sentiment analysis and goal feasibility assessment. It emphasizes VIX trends, time horizons, and wealth trajectory sustainability. The strategic pathway operates with a longer decision horizon, considering how current market sentiment might evolve and affect goal achievement probabilities over multiple time periods.
-
-**Tactical Processing Pathway**  
-The tactical pathway concentrates on immediate portfolio allocation optimization given current market conditions. It emphasizes wealth levels, risk tolerance, and short-term market opportunities. This pathway operates with immediate responsiveness, adjusting portfolio allocations based on current VIX levels and market regime indicators.
-
-**Information Integration**
-The final decision emerges from combining insights from both pathways. Strategic considerations provide the framework for goal selection, while tactical analysis informs portfolio allocation. The integration mechanism ensures that tactical decisions support strategic objectives rather than conflicting with them.
 
 #### Hierarchical Information Flow
 
@@ -292,31 +280,7 @@ The goal value head functions as a **tactical asset allocation specialist** who 
 
 The goal head becomes expert at **market timing value** - understanding how sentiment-driven market conditions create alpha opportunities that pure buy-and-hold strategies miss.
 
-#### Complementary Learning Dynamics
 
-The beauty of the dual-head architecture lies in how these specialized value estimators **complement rather than compete** with each other. Each head develops its own expertise while contributing to overall decision quality:
-
-**Synergistic Value Assessment**: During market stress (high VIX), the wealth head might identify strategic value in delaying expensive goals to preserve capital, while the goal head simultaneously identifies tactical value in increasing equity exposure to capture the volatility risk premium. The combined assessment leads to sophisticated decisions that balance both strategic and tactical considerations.
-
-**Specialized Learning Paths**: The architecture allows each head to develop specialized neural pathways optimized for its domain. The wealth head develops sensitivity to goal timing and affordability patterns, while the goal head develops sensitivity to market timing and portfolio optimization patterns.
-
-#### Ensemble Robustness and Uncertainty Quantification
-
-Beyond the standard dual-head approach, the architecture supports **ensemble value estimation** for enhanced robustness. Multiple value networks with slight architectural variations provide uncertainty quantification - crucial for financial decision-making where understanding confidence levels is as important as the decision itself.
-
-**Risk-Aware Value Estimation**: The ensemble approach naturally captures model uncertainty, providing not just value estimates but confidence intervals. This enables risk-adjusted decision-making where the system can be more conservative when its value estimates have high uncertainty.
-
-#### Why Decomposition Succeeds in Financial Markets
-
-The dual-head architecture succeeds because it **mirrors the natural decomposition** that exists in financial decision-making. Professional wealth management inherently separates strategic planning (goal-based decisions) from tactical implementation (portfolio decisions). By encoding this natural separation into the neural architecture, the system develops specialized expertise in each domain while maintaining the ability to integrate insights for optimal overall decisions.
-
-The architecture's success validates a key principle in financial AI: **domain knowledge should inform architecture design**. Rather than forcing a generic network to learn all aspects of financial decision-making simultaneously, the dual-head approach provides inductive biases that accelerate learning and improve generalization.
-
-**Ablation Study Results** (theoretical):
-- **Single Head**: V(s_t) baseline performance
-- **Dual Head**: +12% value estimation accuracy
-- **Goal Only**: Missing tactical portfolio optimization
-- **Portfolio Only**: Missing strategic goal timing
 
 #### Network Architecture Flow
 ```
@@ -334,69 +298,59 @@ The architecture's success validates a key principle in financial AI: **domain k
 
 ### 1.5 Sentiment-Aware PPO Training Framework
 
-The sentiment-aware PPO training framework represents a sophisticated **adaptive learning system** specifically designed for financial decision-making with market sentiment integration. Rather than applying generic reinforcement learning, this framework incorporates domain-specific innovations that address the unique challenges of sentiment-aware portfolio management.
+The sentiment-aware PPO framework functions as an **adaptive financial advisor** that learns from market experience while maintaining prudent risk management. The system embodies three key principles: cautious learning through conservative policy updates, multi-perspective experience by simultaneously learning strategic and tactical decisions, and market sentiment integration that translates VIX patterns into investment opportunities.
 
-#### Conceptual Foundation: The Adaptive Financial Advisor
+#### Training Process: Experience to Expertise
 
-Think of the PPO training system as developing an **adaptive financial advisor** who learns from experience while maintaining prudent risk management. The system embodies three key principles that mirror professional investment management:
+**Experience Collection**: The system observes 5D states (time, wealth, VIX level, VIX average, VIX momentum) across thousands of market scenarios, building a rich dataset of sentiment-action-outcome relationships.
 
-1. **Cautious Learning** - Like a experienced advisor, the system makes incremental improvements rather than dramatic policy shifts that could destabilize portfolio performance.
+**Conservative Learning**: PPO's clipped objective function prevents dramatic policy changes, implementing a "trust region" approach that limits how much the strategy can evolve in each iteration - mirroring how experienced advisors make gradual strategic adjustments.
 
-2. **Multi-Perspective Experience** - The system simultaneously learns strategic goal management and tactical portfolio allocation, developing expertise in both domains.
+**Specialized Learning**: The system develops expertise in VIX pattern recognition (temporary fear vs sustained stress), goal timing optimization (when market conditions favor achievement), and portfolio sentiment sensitivity (translating VIX into tactical allocation).
 
-3. **Market Sentiment Integration** - Unlike traditional RL, the system learns to interpret and respond to market sentiment signals, developing intuition about how VIX patterns translate into investment opportunities.
+#### PPO Network Architecture Flow
 
-#### The Learning Process: From Novice to Expert
+```
+Environment State: [time, wealth, VIX_level, VIX_avg, VIX_momentum] (5D)
+                                    ↓
+                            Attention Encoder
+                            (Multi-Head Attention)
+                                    ↓
+                         Encoded Features (64D)
+                    ↓                        ↓
+            Policy Network                Value Network
+        (Hierarchical Heads)           (Dual-Head Architecture)
+                    ↓                        ↓
+        Goal Head    Portfolio Head    Goal Value   Portfolio Value
+        (2 actions)  (15 portfolios)   Head         Head
+                    ↓                        ↓
+            Action Sampling              Value Estimation
+         [goal, portfolio]                V(s) = V_goal + V_portfolio
+                    ↓                        ↓
+                Environment Interaction
+                         ↓
+            Reward & Next State
+                         ↓
+                 PPO Loss Computation:
+         • Policy Loss: Clipped surrogate objective
+         • Value Loss: MSE between predicted and actual returns  
+         • Entropy Loss: Exploration regularization
+                         ↓
+              Conservative Parameter Updates
+         (Separate optimizers for policy & value)
+                         ↓
+                 Next Training Iteration
+```
 
-The training process mirrors how a financial professional develops expertise through guided experience and reflection.
+#### Key Training Features
 
-**Experience Collection Phase**: The system acts like a financial advisor shadowing market conditions across thousands of simulated scenarios. During each market environment, it observes the 5-dimensional state (time, wealth, VIX level, VIX average, VIX momentum), makes decisions about goal timing and portfolio allocation, and experiences the consequences. This creates a rich dataset of **sentiment-action-outcome relationships** that forms the foundation for learning.
+**Generalized Advantage Estimation (GAE)**: Sophisticated temporal credit assignment that connects current sentiment decisions to long-term outcomes, crucial for financial applications where benefits compound over time.
 
-**Reflection and Analysis Phase**: After collecting extensive market experience, the system enters a **contemplative learning phase** where it analyzes what worked and what didn't. This isn't random trial-and-error learning; instead, it systematically evaluates whether its decisions led to better outcomes than expected, focusing particularly on how different VIX conditions affected success rates.
+**Hierarchical Learning Rates**: Different learning speeds for strategic (goal) and tactical (portfolio) decisions, with conservative rates for long-term patterns and adaptive rates for market conditions.
 
-**Cautious Policy Improvement**: The key innovation of PPO lies in its **conservative updating approach**. Rather than making dramatic changes that might destabilize performance, the system implements a "trust region" concept that limits how much the policy can change in each learning iteration. This mirrors how experienced financial advisors evolve their strategies gradually rather than making sudden strategic shifts.
+**Sentiment Analytics**: Tracks VIX pattern correlations with rewards, high/low VIX episode performance, and portfolio selection entropy to validate learning effectiveness.
 
-#### Sentiment-Specific Learning Dynamics
-
-The system develops specialized expertise in three critical areas that distinguish sentiment-aware investment management:
-
-**VIX Pattern Recognition**: Through extensive exposure to different market conditions, the system learns to recognize subtle VIX patterns that predict favorable investment opportunities. It develops intuition about when VIX spikes represent temporary fear (buying opportunities) versus sustained market stress (defensive positioning).
-
-**Goal Timing Optimization**: The system learns sophisticated relationships between market sentiment and optimal goal timing. It discovers that achieving expensive goals during low-VIX periods often provides better long-term outcomes, while high-VIX periods may favor wealth preservation strategies.
-
-**Portfolio Sentiment Sensitivity**: The system develops expertise in translating sentiment signals into portfolio allocation decisions. It learns which portfolio risk levels work best under different VIX conditions, developing a nuanced understanding of sentiment-based tactical allocation.
-
-#### Advanced Training Features for Financial Markets
-
-**Generalized Advantage Estimation (GAE)**: The system employs sophisticated **temporal credit assignment** that helps it understand how current market sentiment decisions affect long-term outcomes. This is crucial for financial decision-making where the benefits of sentiment-aware decisions may not be immediately apparent but compound over time.
-
-**Hierarchical Learning Rates**: The training framework uses different learning speeds for strategic (goal) and tactical (portfolio) decisions. Strategic decisions use more conservative learning rates to develop stable long-term patterns, while tactical decisions can adapt more quickly to changing market conditions. This mirrors how professional investment management separates strategic asset allocation from tactical trading decisions.
-
-**Entropy-Regularized Exploration**: The system maintains healthy exploration of different decision combinations, preventing it from becoming overly conservative or aggressive. This **curiosity mechanism** ensures it continues discovering new sentiment-action patterns even as it develops expertise, similar to how experienced advisors stay alert to evolving market dynamics.
-
-#### Multi-Objective Optimization with Sentiment
-
-The training process simultaneously optimizes multiple objectives that reflect the complexity of real-world financial decision-making:
-
-**Primary Objective - Utility Maximization**: The system learns to maximize long-term goal achievement while building wealth, with sentiment information providing crucial timing signals for both strategic and tactical decisions.
-
-**Secondary Objective - Risk Management**: The system develops risk awareness through value function learning, understanding not just what actions to take but how confident it should be in different market conditions.
-
-**Tertiary Objective - Behavioral Consistency**: The system learns to maintain consistent decision-making patterns that avoid erratic behavior while remaining responsive to genuine sentiment signals.
-
-#### Why PPO Succeeds for Financial Sentiment Learning
-
-PPO's success in financial applications stems from its alignment with **prudent investment principles**:
-
-**Conservative Updates**: The clipped objective function prevents dramatic policy changes that could destabilize investment performance, mirroring the conservative approach preferred in wealth management.
-
-**Sample Efficiency**: PPO extracts maximum learning value from each market experience, crucial for financial applications where data generation is computationally expensive.
-
-**Stable Performance**: The algorithm maintains consistent performance during training, avoiding the performance volatility that would be unacceptable in financial applications.
-
-**Interpretable Learning**: The advantage-based learning provides interpretable signals about which sentiment-action combinations work best, enabling analysis and validation of learned strategies.
-
-The sentiment-aware PPO framework succeeds because it **respects the unique constraints** of financial decision-making while leveraging the power of modern reinforcement learning to discover sophisticated sentiment-action relationships that would be difficult to program manually.
+PPO succeeds in financial applications because it respects prudent investment principles through conservative updates, maintains stable performance during training, and provides interpretable learning signals about effective sentiment-action relationships.
 
 ## 2. VIX Model Evolution: Mean-Reverting Jump-Diffusion (MRJD)
 
