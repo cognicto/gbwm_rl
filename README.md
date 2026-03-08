@@ -17,12 +17,12 @@ The sentiment RL system extends traditional goal-based wealth management by inco
 The sentiment RL agent operates in a **5-dimensional state space** compared to the 2-dimensional space of pure RL:
 
 ```
-s_t = [t/T, min(W_t/(10*W_0), 1), (VIX_t - 20)/20, (VIX_avg_t - 20)/20, (VIX_t - VIX_{t-1})/VIX_{t-1}]
+s_t = [t/T, min(W_t/(W_max), 1), (VIX_t - 20)/20, (VIX_avg_t - 20)/20, (VIX_t - VIX_{t-1})/VIX_{t-1}]
 ```
 
 **State Components**:
 1. **Time Progress**: `t/T` ∈ [0,1] - Normalized time horizon
-2. **Wealth Ratio**: `min(W_t/(10*W_0), 1)` - Capped wealth performance 
+2. **Wealth Ratio**: `min(W_t/(W_max), 1)` - Capped wealth performance 
 3. **VIX Level**: `(VIX_t - 20)/20` - Current market fear normalized around long-term mean
 4. **VIX Moving Average**: `(VIX_avg_t - 20)/20` - Short-term volatility trend  
 5. **VIX Momentum**: `(VIX_t - VIX_{t-1})/VIX_{t-1}` - Percentage change in volatility
@@ -491,7 +491,7 @@ action = π_θ(s_t) = (goal_selection, portfolio_selection)
 
 #### Wealth Evolution
 ```
-W_{t+1} = W_t exp((μ_p - 0.5σ_p²)Δt + σ_p√Δt Z_{t+1})
+W_{t+1} = W_t exp((μ_p - 0.5σ_p²)Δt + σ_p√Δt Z_{t})
 ```
 
 #### Reward Structure
