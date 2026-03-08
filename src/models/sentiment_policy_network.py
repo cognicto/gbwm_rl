@@ -12,7 +12,7 @@ from torch.distributions import Categorical
 import numpy as np
 from typing import Tuple, Optional, Union, Dict
 
-from .feature_encoders import create_encoder
+from .feature_encoders import create_encoder, PerFeatureAttentionEncoder
 
 
 class SentimentAwarePolicyNetwork(nn.Module):
@@ -43,7 +43,7 @@ class SentimentAwarePolicyNetwork(nn.Module):
             state_dim: Input state dimensionality (2 for baseline, 4 for sentiment)
             num_portfolios: Number of portfolio choices
             hidden_dim: Hidden layer dimension
-            encoder_type: Type of encoder ('feature', 'simple', 'adaptive', 'attention')
+            encoder_type: Type of encoder ('feature', 'simple', 'adaptive', 'attention', 'per_feature_attention')
             use_batch_norm: Whether to use batch normalization
             dropout_rate: Dropout rate (0.0 to disable)
         """
@@ -234,6 +234,81 @@ class SentimentAwarePolicyNetwork(nn.Module):
             'goal_take_prob': goal_probs[:, 1],
             'most_likely_portfolio': torch.argmax(portfolio_probs, dim=-1)
         }
+    
+    def has_attention_encoder(self) -> bool:
+        """Check if using per-feature attention encoder"""
+        return isinstance(self.state_encoder, PerFeatureAttentionEncoder)
+    
+    def get_attention_weights(self) -> Optional[torch.Tensor]:
+        """
+        Get attention weights from per-feature attention encoder
+        
+        Returns:
+            attention_weights: (input_dim, input_dim) attention matrix if using per-feature attention,
+                             None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_weights()
+        return None
+    
+    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+        """
+        Get feature importance from per-feature attention encoder
+        
+        Returns:
+            Dictionary mapping feature names to importance scores if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_feature_importance()
+        return None
+    
+    def get_attention_summary(self) -> Optional[Dict[str, any]]:
+        """
+        Get comprehensive attention analysis from per-feature attention encoder
+        
+        Returns:
+            Dictionary with attention patterns, regime indicators, etc. if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_summary()
+        return None
+    
+    def analyze_decision(
+        self, 
+        state: torch.Tensor, 
+        include_attention: bool = True
+    ) -> Dict[str, any]:
+        """
+        Comprehensive decision analysis including action probabilities and attention
+        
+        Args:
+            state: Input state tensor
+            include_attention: Whether to include attention analysis
+            
+        Returns:
+            Dictionary with action probabilities and optional attention analysis
+        """
+        # Get action probabilities
+        action_analysis = self.get_action_probabilities(state)
+        
+        analysis = {
+            'action_probs': action_analysis,
+            'encoder_type': self.encoder_type,
+            'has_attention': self.has_attention_encoder()
+        }
+        
+        # Add attention analysis if available and requested
+        if include_attention and self.has_attention_encoder():
+            # Make sure we've done a forward pass to compute attention
+            _ = self.forward(state)
+            
+            attention_summary = self.get_attention_summary()
+            if attention_summary:
+                analysis['attention'] = attention_summary
+        
+        return analysis
 
 
 class HierarchicalPolicyNetwork(nn.Module):
@@ -474,10 +549,48 @@ def test_sentiment_policies():
         assert actions_2d.shape == (batch_size, 2), f"Wrong 2D actions shape: {actions_2d.shape}"
         print("✓ Adaptive state dimensions test passed")
         
+        # Test per-feature attention policy
+        state_5d = torch.randn(batch_size, 5)  # [time, wealth, vix_level, vix_avg, vix_momentum]
+        
+        per_feature_policy = SentimentAwarePolicyNetwork(
+            state_dim=5,
+            encoder_type="per_feature_attention",
+            num_portfolios=15
+        )
+        
+        # Test forward pass
+        goal_probs_pfa, portfolio_probs_pfa = per_feature_policy.forward(state_5d)
+        assert goal_probs_pfa.shape == (batch_size, 2), f"Wrong PFA goal probs shape: {goal_probs_pfa.shape}"
+        assert portfolio_probs_pfa.shape == (batch_size, 15), f"Wrong PFA portfolio probs shape: {portfolio_probs_pfa.shape}"
+        print("✓ Per-feature attention policy forward pass test passed")
+        
+        # Test attention features
+        assert per_feature_policy.has_attention_encoder(), "Should detect per-feature attention encoder"
+        
+        attention_weights = per_feature_policy.get_attention_weights()
+        assert attention_weights is not None, "Should return attention weights"
+        assert attention_weights.shape == (5, 5), f"Wrong attention weights shape: {attention_weights.shape}"
+        
+        feature_importance = per_feature_policy.get_feature_importance()
+        assert feature_importance is not None, "Should return feature importance"
+        expected_features = ['time', 'wealth', 'vix_level', 'vix_avg', 'vix_momentum']
+        assert all(feat in feature_importance for feat in expected_features), "Missing features in importance"
+        
+        attention_summary = per_feature_policy.get_attention_summary()
+        assert attention_summary is not None, "Should return attention summary"
+        assert 'predicted_regime' in attention_summary, "Missing regime prediction"
+        
+        decision_analysis = per_feature_policy.analyze_decision(state_5d)
+        assert 'attention' in decision_analysis, "Missing attention analysis in decision"
+        assert decision_analysis['has_attention'], "Should indicate has attention"
+        
+        print("✓ Per-feature attention interpretability test passed")
+        
         # Test factory function
         policies = [
             create_sentiment_policy("standard", state_dim=4),
-            create_sentiment_policy("hierarchical", state_dim=4)
+            create_sentiment_policy("hierarchical", state_dim=4),
+            create_sentiment_policy("standard", state_dim=5, encoder_type="per_feature_attention")
         ]
         print("✓ Policy factory test passed")
         

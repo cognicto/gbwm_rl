@@ -3179,7 +3179,7 @@ def main():
                         choices=['standard', 'dual_head', 'ensemble'],
                         help='Sentiment RL value network type (default: dual_head)')
     parser.add_argument('--encoder_type', type=str, default='attention',
-                        choices=['feature', 'simple', 'adaptive', 'attention'],
+                        choices=['feature', 'simple', 'adaptive', 'attention', 'per_feature_attention'],
                         help='Sentiment RL encoder type (default: attention)')
 
     # Pure RL architecture (defaults to same as Sentiment RL if not specified)

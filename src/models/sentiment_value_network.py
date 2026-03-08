@@ -40,7 +40,7 @@ class SentimentAwareValueNetwork(nn.Module):
         Args:
             state_dim: Input state dimensionality (2 for baseline, 4 for sentiment)
             hidden_dim: Hidden layer dimension
-            encoder_type: Type of encoder ('feature', 'simple', 'adaptive', 'attention')
+            encoder_type: Type of encoder ('feature', 'simple', 'adaptive', 'attention', 'per_feature_attention')
             num_layers: Number of value layers after encoding
             use_batch_norm: Whether to use batch normalization
             dropout_rate: Dropout rate (0.0 to disable)

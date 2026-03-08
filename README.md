@@ -96,7 +96,7 @@ The **2-month window** and **single-period momentum** design prioritizes **react
 
 ### 1.2 Multi-Head Attention Encoder Architecture
 
-The **attention encoder** processes the 5D state through sophisticated neural attention mechanisms designed for financial time series analysis:
+The **attention encoder** processes the 5D state through sophisticated neural attention mechanisms designed for financial time series analysis. The system supports both standard attention and **per-feature attention** for enhanced interpretability:
 
 #### Understanding the Attention Mechanism
 
@@ -178,6 +178,35 @@ The 4 attention heads operate on the 64D projected representation rather than in
 After each head processes the market information from its specialized perspective, their insights are combined into a unified understanding. This integration process ensures that the final decision incorporates multiple viewpoints—like a financial committee where each member contributes their expertise before reaching a consensus.
 
 The parallel processing creates a **robust analytical framework** where different market conditions activate different combinations of analytical perspectives, leading to more nuanced and context-appropriate financial decisions than any single analytical approach could achieve.
+
+#### Per-Feature Attention for Enhanced Interpretability
+
+The framework also supports **per-feature attention**, an advanced encoder that processes each input feature separately and uses cross-attention to learn feature interactions:
+
+**Architecture Comparison**:
+- **Standard Attention**: `5D state → 64D projection → self-attention(64D) → 64D output`
+- **Per-Feature Attention**: `5D state → [5 feature tokens] → cross-attention → 64D output`
+
+**Key Benefits**:
+- **Interpretable Feature Importance**: Direct visibility into which market signals drive decisions
+- **Automatic Market Regime Detection**: Distinguishes crisis/recovery/deadline-driven/calm market conditions
+- **Dynamic Feature Weighting**: Attention automatically adapts to emphasize relevant features based on market context
+
+**Usage**:
+```bash
+# Enable per-feature attention in evaluation
+python experiments/evaluate_sentiment_rl.py \
+  --encoder_type per_feature_attention \
+  # ... other parameters
+```
+
+**Interpretability Features**:
+- Feature importance scores for each state component
+- Attention weight visualization showing feature interactions  
+- Market regime classification based on attention patterns
+- Comprehensive decision analysis with attention insights
+
+See `demo_per_feature_attention.py` for detailed examples and `PER_FEATURE_ATTENTION.md` for complete documentation.
 
 ### 1.3 Hierarchical Policy Architecture
 
@@ -507,6 +536,7 @@ This design tests whether the RL agent can extract valuable timing and allocatio
 
 ### 4.1 Monthly VIX Evaluation (Recommended)
 
+**Standard Attention Encoder**:
 ```bash
 python experiments/evaluate_sentiment_rl.py \
   --baseline_mode monthly_vix \
@@ -521,6 +551,23 @@ python experiments/evaluate_sentiment_rl.py \
   --use_real_ef \
   --force_recompute \
   --output_dir "data/results/monthly_vix_eval_100000"
+```
+
+**Per-Feature Attention Encoder** (for enhanced interpretability):
+```bash
+python experiments/evaluate_sentiment_rl.py \
+  --baseline_mode monthly_vix \
+  --vix_model_type mrjd \
+  --num_simulations 100000 \
+  --num_iterations 20 \
+  --seed 42 \
+  --goal_counts 1 2 4 8 16 \
+  --policy_type hierarchical \
+  --value_type dual_head \
+  --encoder_type per_feature_attention \
+  --use_real_ef \
+  --force_recompute \
+  --output_dir "data/results/per_feature_attention_eval_100000"
 ```
 
 
