@@ -102,20 +102,30 @@ The **attention encoder** processes the 5D state through sophisticated neural at
 
 The attention mechanism fundamentally addresses a key challenge in financial decision-making: **dynamic feature importance**. Traditional neural networks apply fixed weights to input features, but financial markets require adaptive focus depending on current conditions. The attention mechanism solves this by learning to dynamically weight different state components based on their relevance to the current market context.
 
-In our implementation, self-attention treats each element of the 5D state vector as both a "query" (what information am I looking for?) and a "key-value" pair (what information can I provide?). The mechanism computes attention weights that represent how much each state feature should influence the final decision. For example, during market volatility spikes, the attention weights automatically increase for VIX-related features while reducing focus on time progression. This creates an **adaptive information filter** that emphasizes the most relevant market signals for each decision context, enabling the RL agent to make more informed portfolio allocation and goal selection decisions.
+The framework supports two distinct attention approaches:
+
+**Standard Attention**: Self-attention treats the entire 5D state as a unified representation, computing attention weights across the embedded features. This approach captures global feature interactions efficiently but with limited interpretability.
+
+**Per-Feature Attention**: Each individual feature (time, wealth, VIX components) gets its own embedding token, and cross-attention computes how each feature should attend to all others. This creates explicit, interpretable attention weights between specific financial signals. For example, during market volatility spikes, the VIX momentum token automatically increases its attention to VIX level tokens while reducing attention to time progression. This creates an **interpretable information filter** that shows exactly which market signals drive decisions, enabling transparent financial AI.
 
 #### Core Architecture Principles
 
-The attention encoder transforms the 5D financial state into a rich 64-dimensional representation through three fundamental stages: **projection**, **attention computation**, and **feature integration**.
+Both attention approaches transform the 5D financial state into a rich 64-dimensional representation, but through different pathways:
 
-**Stage 1: Feature Projection**
-The raw financial state gets transformed from its original dimensions into a unified embedding space. This projection creates a common representational framework where all features—whether time, wealth, or VIX components—can interact meaningfully. Think of this as translating different "languages" of financial information into a single coherent vocabulary.
+**Standard Attention Approach**:
+1. **Unified Projection**: Raw state → single 64D embedding → self-attention → feature integration
+2. **Global Interactions**: All features interact within a shared representation space
+3. **Efficient Computation**: Single attention operation captures all relationships
 
-**Stage 2: Attention-Based Feature Weighting**
-The core innovation lies in computing attention weights that determine which features matter most for the current market context. Unlike traditional neural networks that apply fixed weights, the attention mechanism dynamically adjusts these weights based on market conditions. During calm periods, time and wealth features receive higher attention. During market stress, VIX-related features dominate the attention weights.
+**Per-Feature Attention Approach**:
+1. **Individual Embeddings**: Each feature → separate 32D token → cross-attention → pooled integration  
+2. **Explicit Interactions**: Direct attention weights between specific feature pairs (e.g., VIX level ↔ VIX momentum)
+3. **Interpretable Computation**: Feature-specific attention weights enable transparent decision analysis
 
-**Stage 3: Information Integration**
-The weighted features are combined through residual connections and normalization layers that ensure stable training while preserving important information from both the original state and the attention-processed features. This creates the final encoded representation that captures both individual feature importance and their complex interactions.
+**Shared Benefits**:
+- **Dynamic Feature Weighting**: Attention automatically adapts based on market conditions
+- **Context Sensitivity**: Different market regimes activate different attention patterns  
+- **Training Stability**: Layer normalization and proper initialization ensure robust learning
 
 #### Multi-Head Attention Benefits
 
@@ -141,6 +151,7 @@ The weighted features are combined through residual connections and normalizatio
 
 #### Network Architecture Flow
 
+**Standard Attention Encoder**:
 ```
 5D State Input: [t/T, wealth, VIX_level, VIX_avg, VIX_momentum]
                                     ↓
@@ -162,22 +173,52 @@ The weighted features are combined through residual connections and normalizatio
                     64D Encoded Representation
 ```
 
+**Per-Feature Attention Encoder**:
+```
+5D State Input: [t/T, wealth, VIX_level, VIX_avg, VIX_momentum]
+                                    ↓
+              Individual Feature Embeddings (5 parallel paths)
+    [time_emb]  [wealth_emb]  [vix_level_emb]  [vix_avg_emb]  [vix_momentum_emb]
+         ↓           ↓              ↓              ↓               ↓
+    [32D token] [32D token]   [32D token]    [32D token]     [32D token]
+                                    ↓
+                        5 Feature Tokens (5 × 32D)
+                                    ↓
+                    Multi-Head Cross-Attention (4 heads)
+                    Each token attends to all other tokens
+                                    ↓
+                        Attention-Weighted Features
+                                    ↓
+                           Average Pooling
+                                    ↓
+                         Layer Normalization  
+                                    ↓
+                    64D Encoded Representation
+```
+
 #### Multi-Head Parallel Processing Explained
 
-The multi-head mechanism enables **parallel specialization** where each attention head learns to focus on different types of feature relationships. Think of it as having four financial analysts, each with different expertise, simultaneously analyzing the same market data.
+The multi-head mechanism enables **parallel specialization** where each attention head learns to focus on different aspects of financial analysis. Think of it as having four financial analysts, each with different expertise, simultaneously analyzing the same market data.
 
-**Specialized Financial Perspective Processing**
-Each of the four attention heads develops its own perspective on financial decision-making. The system automatically learns to allocate different heads to different market analysis tasks:
-The 4 attention heads operate on the 64D projected representation rather than individual input features. Each head learns different aspects of the embedded financial state, enabling parallel processing of complex feature relationships within the unified representation space.
-- **Head 1** might specialize in *time-wealth correlations*: "When time is low AND wealth is high → focus on aggressive portfolios"
-- **Head 2** might focus on *crisis detection*: "When VIX spikes → prioritize defensive allocations regardless of wealth"  
-- **Head 3** might handle *momentum analysis*: "When VIX momentum is positive → reduce goal urgency weighting"
-- **Head 4** might emphasize *deadline pressure*: "Near goal deadlines → amplify wealth-to-goal feasibility signals"
+**Standard Attention Specialization**:
+In standard attention, the 4 heads operate on the 64D unified representation, with each head learning different aspects of the embedded financial state:
+- **Head 1** might specialize in *time-wealth correlations*: Global relationships between deadline pressure and risk capacity
+- **Head 2** might focus on *crisis detection*: Identifying market stress patterns across all features
+- **Head 3** might handle *momentum analysis*: VIX trend dynamics and their implications
+- **Head 4** might emphasize *regime transitions*: Detecting shifts between market conditions
 
-**Consensus-Based Decision Making**
-After each head processes the market information from its specialized perspective, their insights are combined into a unified understanding. This integration process ensures that the final decision incorporates multiple viewpoints—like a financial committee where each member contributes their expertise before reaching a consensus.
+**Per-Feature Attention Specialization**:
+In per-feature attention, the 4 heads operate on the 5 feature tokens (32D each), with each head learning different types of **inter-feature relationships**:
+- **Head 1** might specialize in *VIX coherence*: How VIX level, average, and momentum align with each other
+- **Head 2** might focus on *time-risk interactions*: How deadline pressure affects VIX sensitivity
+- **Head 3** might handle *wealth-VIX coupling*: How portfolio risk capacity relates to market volatility
+- **Head 4** might emphasize *sequential dependencies*: How current features predict future market conditions
 
-The parallel processing creates a **robust analytical framework** where different market conditions activate different combinations of analytical perspectives, leading to more nuanced and context-appropriate financial decisions than any single analytical approach could achieve.
+**Key Advantage of Per-Feature Approach**:
+Per-feature attention provides **explicit feature interaction matrices** showing exactly how each financial signal influences others (e.g., "VIX momentum attends strongly to VIX level with weight 0.85"). This interpretability enables transparent analysis of which market relationships drive investment decisions.
+
+**Consensus-Based Decision Making**:
+Both approaches combine insights from multiple analytical perspectives into unified decisions, but per-feature attention maintains feature-level interpretability throughout the integration process, enabling transparent explanations of financial AI decisions for regulatory compliance and advisor-client communication.
 
 #### Per-Feature Attention for Enhanced Interpretability
 
