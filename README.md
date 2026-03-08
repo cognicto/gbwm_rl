@@ -147,15 +147,9 @@ The weighted features are combined through residual connections and normalizatio
                         Input Projection (5 → 64)
                                     ↓
                            64D Embedded State
-                    ↓         ↓         ↓         ↓
-              Head 1     Head 2     Head 3     Head 4
-            (16 dims)  (16 dims)  (16 dims)  (16 dims)
-                 ↓         ↓         ↓         ↓
-            Q₁,K₁,V₁   Q₂,K₂,V₂   Q₃,K₃,V₃   Q₄,K₄,V₄
-                 ↓         ↓         ↓         ↓
-         Attention₁  Attention₂  Attention₃  Attention₄
-                    ↓         ↓         ↓         ↓
-                        Concatenate & Project
+                                    ↓         
+                        Multi-Head Self-Attention (4 heads)
+                      Applied to entire 64D representation
                                     ↓
                           Residual Connection
                                     ↓
@@ -174,7 +168,7 @@ The multi-head mechanism enables **parallel specialization** where each attentio
 
 **Specialized Financial Perspective Processing**
 Each of the four attention heads develops its own perspective on financial decision-making. The system automatically learns to allocate different heads to different market analysis tasks:
-
+The 4 attention heads operate on the 64D projected representation rather than individual input features. Each head learns different aspects of the embedded financial state, enabling parallel processing of complex feature relationships within the unified representation space.
 - **Head 1** might specialize in *time-wealth correlations*: "When time is low AND wealth is high → focus on aggressive portfolios"
 - **Head 2** might focus on *crisis detection*: "When VIX spikes → prioritize defensive allocations regardless of wealth"  
 - **Head 3** might handle *momentum analysis*: "When VIX momentum is positive → reduce goal urgency weighting"
