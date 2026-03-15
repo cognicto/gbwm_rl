@@ -324,7 +324,8 @@ class HierarchicalPolicyNetwork(nn.Module):
         self,
         state_dim: int = 4,
         num_portfolios: int = 15,
-        hidden_dim: int = 64
+        hidden_dim: int = 64,
+        encoder_type: str = "feature"
     ):
         """
         Initialize hierarchical policy network
@@ -333,24 +334,37 @@ class HierarchicalPolicyNetwork(nn.Module):
             state_dim: Input state dimensionality
             num_portfolios: Number of portfolio choices
             hidden_dim: Hidden layer dimension
+            encoder_type: Type of encoder ('feature', 'simple', 'adaptive', 'attention', 'per_feature_attention')
         """
         super().__init__()
         
         self.state_dim = state_dim
         self.num_portfolios = num_portfolios
         self.hidden_dim = hidden_dim
+        self.encoder_type = encoder_type
         
-        # High-level encoder (focuses on sentiment + time)
-        self.high_level_encoder = nn.Sequential(
-            nn.Linear(state_dim, hidden_dim),
+        # Create shared state encoder using configurable encoder types
+        from .feature_encoders import create_encoder
+        self.state_encoder = create_encoder(
+            encoder_type=encoder_type,
+            input_dim=state_dim,
+            hidden_dim=hidden_dim
+        )
+        
+        # Get actual encoder output dimension
+        encoder_output_dim = self.state_encoder.get_output_dim()
+        
+        # High-level processing layers (strategic decisions)
+        self.high_level_processor = nn.Sequential(
+            nn.Linear(encoder_output_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim//2),
             nn.Tanh()
         )
         
-        # Low-level encoder (focuses on wealth + portfolio characteristics)
-        self.low_level_encoder = nn.Sequential(
-            nn.Linear(state_dim, hidden_dim),
+        # Low-level processing layers (tactical decisions)
+        self.low_level_processor = nn.Sequential(
+            nn.Linear(encoder_output_dim, hidden_dim),
             nn.Tanh(), 
             nn.Linear(hidden_dim, hidden_dim//2),
             nn.Tanh()
@@ -381,11 +395,14 @@ class HierarchicalPolicyNetwork(nn.Module):
     
     def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Forward pass through hierarchical network"""
+        # Encode state using configurable encoder (attention, per-feature attention, etc.)
+        encoded_state = self.state_encoder(state)
+        
         # High-level processing (strategic)
-        high_features = self.high_level_encoder(state)
+        high_features = self.high_level_processor(encoded_state)
         
         # Low-level processing (tactical) 
-        low_features = self.low_level_encoder(state)
+        low_features = self.low_level_processor(encoded_state)
         
         # Goal decision (high-level)
         goal_logits = self.goal_head(high_features)
@@ -456,6 +473,90 @@ class HierarchicalPolicyNetwork(nn.Module):
         entropy = goal_entropy + portfolio_entropy
         
         return log_probs, entropy
+    
+    def has_attention_encoder(self) -> bool:
+        """Check if using per-feature attention encoder"""
+        return isinstance(self.state_encoder, PerFeatureAttentionEncoder)
+    
+    def get_attention_weights(self) -> Optional[torch.Tensor]:
+        """
+        Get attention weights from per-feature attention encoder
+        
+        Returns:
+            attention_weights: (input_dim, input_dim) attention matrix if using per-feature attention,
+                             None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_weights()
+        return None
+    
+    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+        """
+        Get feature importance from per-feature attention encoder
+        
+        Returns:
+            Dictionary mapping feature names to importance scores if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_feature_importance()
+        return None
+    
+    def get_attention_summary(self) -> Optional[Dict[str, any]]:
+        """
+        Get comprehensive attention analysis from per-feature attention encoder
+        
+        Returns:
+            Dictionary with attention patterns, regime indicators, etc. if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_summary()
+        return None
+    
+    def analyze_decision(
+        self, 
+        state: torch.Tensor, 
+        include_attention: bool = True
+    ) -> Dict[str, any]:
+        """
+        Comprehensive decision analysis including action probabilities and attention
+        
+        Args:
+            state: Input state tensor
+            include_attention: Whether to include attention analysis
+            
+        Returns:
+            Dictionary with action probabilities and optional attention analysis
+        """
+        # Get action probabilities (similar to standard policy)
+        goal_probs, portfolio_probs = self.forward(state)
+        
+        action_analysis = {
+            'goal_probs': goal_probs,
+            'portfolio_probs': portfolio_probs,
+            'goal_skip_prob': goal_probs[:, 0],
+            'goal_take_prob': goal_probs[:, 1],
+            'most_likely_portfolio': torch.argmax(portfolio_probs, dim=-1)
+        }
+        
+        analysis = {
+            'action_probs': action_analysis,
+            'encoder_type': self.encoder_type,
+            'has_attention': self.has_attention_encoder(),
+            'policy_type': 'hierarchical'
+        }
+        
+        # Add attention analysis if available and requested
+        if include_attention and self.has_attention_encoder():
+            # Make sure we've done a forward pass to compute attention
+            _ = self.forward(state)
+            
+            attention_summary = self.get_attention_summary()
+            if attention_summary:
+                analysis['attention'] = attention_summary
+        
+        return analysis
 
 
 def create_sentiment_policy(
@@ -483,12 +584,11 @@ def create_sentiment_policy(
             **kwargs
         )
     elif policy_type == "hierarchical":
-        # HierarchicalPolicyNetwork has its own internal encoding, so filter out encoder_type
-        hierarchical_kwargs = {k: v for k, v in kwargs.items() if k != 'encoder_type'}
+        # HierarchicalPolicyNetwork now supports configurable encoder types
         return HierarchicalPolicyNetwork(
             state_dim=state_dim,
             num_portfolios=num_portfolios,
-            **hierarchical_kwargs
+            **kwargs
         )
     else:
         raise ValueError(f"Unknown policy type: {policy_type}")
@@ -586,11 +686,42 @@ def test_sentiment_policies():
         
         print("✓ Per-feature attention interpretability test passed")
         
+        # Test hierarchical policy with per-feature attention
+        hierarchical_pfa_policy = HierarchicalPolicyNetwork(
+            state_dim=5,
+            encoder_type="per_feature_attention",
+            num_portfolios=15
+        )
+        
+        # Test forward pass
+        goal_probs_h_pfa, portfolio_probs_h_pfa = hierarchical_pfa_policy.forward(state_5d)
+        assert goal_probs_h_pfa.shape == (batch_size, 2), f"Wrong hierarchical PFA goal probs shape: {goal_probs_h_pfa.shape}"
+        assert portfolio_probs_h_pfa.shape == (batch_size, 15), f"Wrong hierarchical PFA portfolio probs shape: {portfolio_probs_h_pfa.shape}"
+        
+        # Test attention features
+        assert hierarchical_pfa_policy.has_attention_encoder(), "Hierarchical policy should detect per-feature attention encoder"
+        
+        h_attention_weights = hierarchical_pfa_policy.get_attention_weights()
+        assert h_attention_weights is not None, "Hierarchical policy should return attention weights"
+        assert h_attention_weights.shape == (5, 5), f"Wrong hierarchical attention weights shape: {h_attention_weights.shape}"
+        
+        h_feature_importance = hierarchical_pfa_policy.get_feature_importance()
+        assert h_feature_importance is not None, "Hierarchical policy should return feature importance"
+        assert all(feat in h_feature_importance for feat in expected_features), "Missing features in hierarchical importance"
+        
+        h_decision_analysis = hierarchical_pfa_policy.analyze_decision(state_5d)
+        assert 'attention' in h_decision_analysis, "Missing attention analysis in hierarchical decision"
+        assert h_decision_analysis['has_attention'], "Hierarchical policy should indicate has attention"
+        assert h_decision_analysis['policy_type'] == 'hierarchical', "Should indicate hierarchical policy type"
+        
+        print("✓ Hierarchical policy with per-feature attention test passed")
+        
         # Test factory function
         policies = [
             create_sentiment_policy("standard", state_dim=4),
             create_sentiment_policy("hierarchical", state_dim=4),
-            create_sentiment_policy("standard", state_dim=5, encoder_type="per_feature_attention")
+            create_sentiment_policy("standard", state_dim=5, encoder_type="per_feature_attention"),
+            create_sentiment_policy("hierarchical", state_dim=5, encoder_type="per_feature_attention")
         ]
         print("✓ Policy factory test passed")
         

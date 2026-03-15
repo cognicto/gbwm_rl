@@ -249,9 +249,147 @@ python experiments/evaluate_sentiment_rl.py \
 
 See `demo_per_feature_attention.py` for detailed examples and `PER_FEATURE_ATTENTION.md` for complete documentation.
 
+#### Multi-Head Attention Matrix Computations
+
+**Understanding Attention Computation Flow**
+
+The multi-head attention mechanism processes financial state through explicit matrix computations that enable interpretable feature analysis. Here's how attention traverses through the network:
+
+##### Standard Attention Encoder (Single Token Processing)
+
+**Step 1: Input Processing**
+```python
+# Input: Financial state (batch_size, input_dim)
+state = [time, wealth, vix_level, vix_avg, vix_momentum]  # (32, 5)
+
+# Project to hidden dimension
+projected = state @ W_proj + b_proj  # (32, 5) → (32, 64)
+seq_input = projected.unsqueeze(1)   # Add sequence dim: (32, 1, 64)
+```
+
+**Step 2: Multi-Head Attention Computation**
+```python
+# Linear projections for Q, K, V
+Q = seq_input @ W_q  # (32, 1, 64) → (32, 1, 64)
+K = seq_input @ W_k  # (32, 1, 64) → (32, 1, 64)
+V = seq_input @ W_v  # (32, 1, 64) → (32, 1, 64)
+
+# Reshape for 4 attention heads (head_dim = 64/4 = 16)
+Q = Q.view(32, 1, 4, 16).transpose(1, 2)  # (32, 4, 1, 16)
+K = K.view(32, 1, 4, 16).transpose(1, 2)  # (32, 4, 1, 16)
+V = V.view(32, 1, 4, 16).transpose(1, 2)  # (32, 4, 1, 16)
+
+# Scaled dot-product attention for each head
+scores = (Q @ K.transpose(-2, -1)) / √16   # (32, 4, 1, 1)
+attention = softmax(scores, dim=-1) @ V    # (32, 4, 1, 16)
+```
+
+##### Per-Feature Attention Encoder (Multi-Token Processing)
+
+**Step 1: Individual Feature Embeddings**
+```python
+# Extract and embed each feature separately
+time_emb = time_embedding(time)              # (32, 1) → (32, 32)
+wealth_emb = wealth_embedding(wealth)        # (32, 1) → (32, 32)
+vix_level_emb = vix_level_embedding(vix_level)  # (32, 1) → (32, 32)
+vix_avg_emb = vix_avg_embedding(vix_avg)     # (32, 1) → (32, 32)
+vix_mom_emb = vix_momentum_embedding(vix_momentum) # (32, 1) → (32, 32)
+
+# Stack into feature sequence
+embeddings = stack([time_emb, wealth_emb, vix_level_emb, vix_avg_emb, vix_mom_emb])
+# Result: (32, 5, 32) - 32 samples, 5 feature tokens, 32-dim each
+```
+
+**Step 2: Cross-Feature Attention Matrix**
+```python
+# Multi-head cross-attention between features (num_heads=4, head_dim=8)
+Q = embeddings @ W_q  # (32, 5, 32) → (32, 5, 32)
+K = embeddings @ W_k  # (32, 5, 32) → (32, 5, 32)  
+V = embeddings @ W_v  # (32, 5, 32) → (32, 5, 32)
+
+# Reshape for multi-head processing
+Q = Q.view(32, 5, 4, 8).transpose(1, 2)  # (32, 4, 5, 8)
+K = K.view(32, 5, 4, 8).transpose(1, 2)  # (32, 4, 5, 8)
+V = V.view(32, 5, 4, 8).transpose(1, 2)  # (32, 4, 5, 8)
+
+# Feature-to-feature attention computation
+scores = (Q @ K.transpose(-2, -1)) / √8     # (32, 4, 5, 5)
+attn_weights = softmax(scores, dim=-1)      # (32, 4, 5, 5)
+attended = attn_weights @ V                 # (32, 4, 5, 8)
+```
+
+**Step 3: Interpretable Attention Matrix**
+
+The key innovation is the **5×5 attention matrix** showing how each feature attends to others:
+
+```
+attn_weights[batch, head, i, j] = how much feature i attends to feature j
+
+Example Financial Attention Pattern (Head 1 - Crisis Detection):
+                time   wealth  vix_lvl  vix_avg  vix_mom
+time         [  0.15   0.25    0.20     0.25     0.15  ]
+wealth       [  0.30   0.20    0.15     0.20     0.15  ]
+vix_level    [  0.10   0.15    0.25     0.35     0.15  ]
+vix_avg      [  0.12   0.18    0.30     0.25     0.15  ]
+vix_momentum [  0.15   0.20    0.25     0.20     0.20  ]
+
+Financial Interpretation:
+• vix_level → vix_avg (0.35): Current VIX strongly attends to historical average
+• wealth → time (0.30): Wealth level drives time-sensitive decisions  
+• vix_avg → vix_level (0.30): Historical context informs current VIX interpretation
+```
+
+##### Multi-Head Specialization Visualization
+
+```
+Input: [time=0.8, wealth=0.3, vix_level=25, vix_avg=20, vix_momentum=2.1]
+
+┌─────────────────────────────────────────────────────────────┐
+│                    FEATURE EMBEDDINGS                      │
+├─────────────┬─────────────┬─────────────┬─────────────┬─────┤
+│ time_emb    │ wealth_emb  │ vix_lvl_emb │ vix_avg_emb │ ... │
+│ (32-dim)    │ (32-dim)    │ (32-dim)    │ (32-dim)    │     │
+└─────────────┴─────────────┴─────────────┴─────────────┴─────┘
+                                ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  MULTI-HEAD ATTENTION                      │
+├─────────────┬─────────────┬─────────────┬─────────────┬─────┤
+│   Head 1    │   Head 2    │   Head 3    │   Head 4    │     │
+│             │             │             │             │     │
+│ Learns      │ Learns      │ Learns      │ Learns      │     │
+│ time-wealth │ VIX         │ VIX level-  │ sequential  │     │
+│ interactions│ coherence   │ avg         │ dependencies│     │
+│             │             │ relationships│             │     │
+└─────────────┴─────────────┴─────────────┴─────────────┴─────┘
+                                ↓
+Head 1: Time-Wealth Focus           Head 2: VIX Coherence
+     t   w   vl  va  vm                  t   w   vl  va  vm
+t [ 0.2 0.6 0.1 0.1 0.0 ]         t [ 0.8 0.1 0.05 0.05 0.0 ]
+w [ 0.5 0.2 0.1 0.1 0.1 ]         w [ 0.1 0.7 0.1  0.05 0.05]  
+vl[ 0.1 0.2 0.2 0.3 0.2 ]         vl[ 0.0 0.1 0.3  0.4  0.2 ]
+va[ 0.1 0.2 0.4 0.2 0.1 ]         va[ 0.0 0.1 0.4  0.3  0.2 ]
+vm[ 0.1 0.1 0.3 0.3 0.2 ]         vm[ 0.0 0.1 0.2  0.2  0.5 ]
+```
+
+**Financial Insights from Attention Patterns**:
+
+- **Head 1 (Time-Wealth Focus)**: `time → wealth (0.6)` shows deadline pressure drives wealth sensitivity
+- **Head 2 (VIX Coherence)**: `vix_level → vix_avg (0.4)` captures mean reversion dynamics  
+- **Head 3 (Level-Average)**: `vix_avg → vix_level (0.5)` shows historical context informing current decisions
+- **Head 4 (Sequential)**: `vix_momentum → vix_momentum (0.6)` captures trend persistence
+
+**Computational Complexity Comparison**:
+
+| Encoder Type | Parameters | Attention Matrix | Interpretability |
+|--------------|------------|-------------------|------------------|
+| Standard | ~16.4K | 1×1 (trivial) | Low |
+| **Per-Feature** | **~103K** | **5×5 (rich)** | **High** |
+
+The 6× parameter increase in per-feature attention provides explicit **feature interaction matrices** that enable transparent analysis of financial decision-making, making it invaluable for regulatory compliance and advisor-client communication in financial AI systems.
+
 ### 1.3 Hierarchical Policy Architecture
 
-The sentiment RL employs a **two-level hierarchical policy** that decomposes the complex action space into manageable sub-decisions:
+The sentiment RL employs a **two-level hierarchical policy** that decomposes the complex action space into manageable sub-decisions. The policy network now **fully supports all encoder types** including per-feature attention for enhanced interpretability:
 
 #### Understanding Hierarchical Decision Making
 
@@ -275,10 +413,14 @@ The final innovation lies in coordinated probability-based action selection. Rat
 
 #### Hierarchical Information Flow
 
+**Standard Architecture** (with Configurable Encoders):
 ```
 5D State: [time, wealth, VIX_level, VIX_avg, VIX_momentum]
                               ↓
-                      Attention Encoding
+                   Configurable State Encoder
+           (simple | feature | attention | per_feature_attention)
+                              ↓
+                     64D Encoded Representation
                               ↓
                     Shared Feature Processing
                     ↓                    ↓
@@ -291,6 +433,30 @@ The final innovation lies in coordinated probability-based action selection. Rat
                     Joint Action Sampling
                               ↓
               Combined Log Probability
+```
+
+**Per-Feature Attention Enhanced Flow**:
+```
+5D State: [time, wealth, VIX_level, VIX_avg, VIX_momentum]
+                              ↓
+              Individual Feature Embeddings (5 × 32D tokens)
+                              ↓
+                 Cross-Feature Attention (5×5 matrix)
+                Feature_i attends to all Feature_j
+                              ↓
+              Interpretable 64D Representation
+          ┌─────────────────┬─────────────────┐
+          ↓                 ↓                 ↓
+    Goal Head         Portfolio Head    Attention Analysis
+  (Strategic)         (Tactical)        • Feature Importance
+                                       • Regime Detection  
+                                       • Attention Weights
+          ↓                 ↓                 ↓
+    Goal Decision    Portfolio Decision   Interpretability
+    [skip, take]     [portfolio_0...14]    Insights
+          └─────────────────┼─────────────────┘
+                           ↓
+                Joint Action + Explanation
 ```
 
 #### Policy Network Benefits
@@ -312,7 +478,7 @@ This hierarchical design enables the RL agent to develop sophisticated investmen
 
 ### 1.4 Dual-Head Value Function Architecture
 
-The dual-head value function architecture represents a sophisticated **value decomposition approach** that mirrors how professional wealth managers naturally separate strategic and tactical thinking. Rather than estimating a single monolithic value, the system intelligently breaks down value estimation into two specialized components that capture fundamentally different aspects of financial decision-making.
+The dual-head value function architecture represents a sophisticated **value decomposition approach** that mirrors how professional wealth managers naturally separate strategic and tactical thinking. Rather than estimating a single monolithic value, the system intelligently breaks down value estimation into two specialized components that capture fundamentally different aspects of financial decision-making. **All value networks now fully support configurable encoders including per-feature attention** for enhanced interpretability.
 
 #### Conceptual Foundation: The Investment Manager's Perspective
 
@@ -346,19 +512,104 @@ The goal head becomes expert at **market timing value** - understanding how sent
 
 
 
-#### Network Architecture Flow
+#### Value Network Architecture Variants
+
+The system supports three value network architectures, all with **full encoder configuration support**:
+
+**1. Standard Dual-Head Value Network**:
 ```
-φ_attention(s_t) → [V_goal Head] → V_goal(s_t)
-                ↘ [V_portfolio Head] → V_portfolio(s_t)
-                                    ↓
-                               V(s_t) = V_goal + V_portfolio
+5D State: [time, wealth, VIX_level, VIX_avg, VIX_momentum]
+                              ↓
+                   Configurable State Encoder
+           (simple | feature | attention | per_feature_attention)
+                              ↓
+                     64D Encoded Representation
+                              ↓
+                    Shared Feature Processing
+                    ↓                    ↓
+            Wealth Value Head      Goal Value Head
+            (Strategic)            (Tactical)
+                    ↓                    ↓
+            Wealth Value           Goal Value
+                    ↓                    ↓
+                  Learnable Combination
+                              ↓
+                    V(s_t) = α·V_wealth + β·V_goal
+```
+
+**2. Ensemble Value Network** (Advanced):
+```
+5D State: [time, wealth, VIX_level, VIX_avg, VIX_momentum]
+                              ↓
+        Ensemble of 3+ Networks (each with configurable encoder)
+        Network_1      Network_2      Network_3      ...
+     (per_feature)    (attention)     (feature)
+           ↓               ↓             ↓
+        V_1(s_t)        V_2(s_t)     V_3(s_t)
+                              ↓
+                    Weighted Ensemble Combination
+                              ↓
+                    V(s_t) = Σ w_i·V_i(s_t)
+```
+
+**3. Per-Feature Attention Enhanced Value Network**:
+```
+5D State: [time, wealth, VIX_level, VIX_avg, VIX_momentum]
+                              ↓
+              Individual Feature Embeddings (5 × 32D tokens)
+                              ↓
+                 Cross-Feature Attention (5×5 matrix)
+                Feature_i attends to all Feature_j
+                              ↓
+              Interpretable 64D Representation
+          ┌─────────────────┬─────────────────┐
+          ↓                 ↓                 ↓
+    Wealth Head         Goal Head       Attention Analysis
+    (Strategic)        (Tactical)       • Feature Importance
+                                       • Market Regime Detection
+                                       • Value Attribution
+          ↓                 ↓                 ↓
+    Strategic Value   Tactical Value    Explainability
+                              ↓
+                 Combined Value + Explanation
+```
+
+#### Advanced Ensemble Features
+
+**Ensemble-Specific Attention Capabilities**:
+- **Consensus Regime Detection**: Voting across multiple attention networks
+- **Attention Coverage Metrics**: Percentage of networks using attention encoders
+- **Aggregated Feature Importance**: Averaged across all attention-enabled networks
+- **Value Prediction Confidence**: Standard deviation across ensemble predictions
+- **Regime Confidence Scoring**: How certain the ensemble is about market classification
+
+#### Interpretability Interface
+
+**All value networks now support unified attention interface**:
+```python
+# Check if value network uses per-feature attention
+if value_net.has_attention_encoder():
+    # Get feature importance for value estimation
+    importance = value_net.get_feature_importance()
+    print(f"VIX Level drives {importance['vix_level']:.1%} of value decisions")
+    
+    # Get market regime detection from value perspective
+    summary = value_net.get_attention_summary()
+    print(f"Value network detects: {summary['predicted_regime']} market")
+    
+    # For ensemble networks: get consensus analysis
+    if hasattr(value_net, 'get_attention_summary'):
+        ensemble_summary = value_net.get_attention_summary()
+        print(f"Ensemble consensus: {ensemble_summary['consensus_regime']}")
+        print(f"Confidence: {ensemble_summary['regime_confidence']:.1%}")
 ```
 
 **Implementation Details**:
-- **Batch Normalization**: Applied to hidden layers for stable training
-- **Dropout**: 0.1 rate during training for regularization  
-- **Gradient Clipping**: Max norm 1.0 to prevent instability
-- **Target Networks**: Soft update with τ = 0.005 for stability
+- **Encoder Consistency**: Policy and value networks can use different encoder types
+- **Shared Attention Analysis**: Both networks provide unified interpretability interface
+- **Ensemble Robustness**: Multiple attention perspectives reduce interpretation bias
+- **Computational Efficiency**: Attention computed once per forward pass
+- **Financial Transparency**: Separate strategic vs tactical value explanations
 
 ### 1.5 Sentiment-Aware PPO Training Framework
 

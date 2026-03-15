@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 from typing import Optional, Dict, Any
 
-from .feature_encoders import create_encoder
+from .feature_encoders import create_encoder, PerFeatureAttentionEncoder
 
 
 class SentimentAwareValueNetwork(nn.Module):
@@ -164,6 +164,7 @@ class DualHeadValueNetwork(nn.Module):
         
         self.state_dim = state_dim
         self.hidden_dim = hidden_dim
+        self.encoder_type = encoder_type
         
         # Shared state encoder
         self.state_encoder = create_encoder(
@@ -266,6 +267,46 @@ class DualHeadValueNetwork(nn.Module):
             'wealth_weight': torch.sigmoid(self.wealth_weight),
             'goal_weight': torch.sigmoid(self.goal_weight)
         }
+    
+    def has_attention_encoder(self) -> bool:
+        """Check if using per-feature attention encoder"""
+        return isinstance(self.state_encoder, PerFeatureAttentionEncoder)
+    
+    def get_attention_weights(self) -> Optional[torch.Tensor]:
+        """
+        Get attention weights from per-feature attention encoder
+        
+        Returns:
+            attention_weights: (input_dim, input_dim) attention matrix if using per-feature attention,
+                             None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_weights()
+        return None
+    
+    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+        """
+        Get feature importance from per-feature attention encoder
+        
+        Returns:
+            Dictionary mapping feature names to importance scores if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_feature_importance()
+        return None
+    
+    def get_attention_summary(self) -> Optional[Dict[str, any]]:
+        """
+        Get comprehensive attention analysis from per-feature attention encoder
+        
+        Returns:
+            Dictionary with attention patterns, regime indicators, etc. if using per-feature attention,
+            None otherwise
+        """
+        if self.has_attention_encoder():
+            return self.state_encoder.get_attention_summary()
+        return None
 
 
 class EnsembleValueNetwork(nn.Module):
@@ -295,6 +336,7 @@ class EnsembleValueNetwork(nn.Module):
         super().__init__()
         
         self.num_networks = num_networks
+        self.encoder_type = encoder_type
         
         # Create ensemble of value networks
         self.networks = nn.ModuleList([
@@ -358,6 +400,99 @@ class EnsembleValueNetwork(nn.Module):
             'network_weights': weights,
             'prediction_std': torch.std(torch.stack(individual_predictions, dim=0), dim=0)
         }
+    
+    def has_attention_encoder(self) -> bool:
+        """Check if any network in ensemble uses per-feature attention encoder"""
+        return any(isinstance(network.state_encoder, PerFeatureAttentionEncoder) for network in self.networks)
+    
+    def get_attention_weights(self) -> Optional[torch.Tensor]:
+        """
+        Get attention weights from first per-feature attention encoder in ensemble
+        
+        Returns:
+            attention_weights: (input_dim, input_dim) attention matrix from first attention network,
+                             None if no attention networks in ensemble
+        """
+        for network in self.networks:
+            if isinstance(network.state_encoder, PerFeatureAttentionEncoder):
+                return network.state_encoder.get_attention_weights()
+        return None
+    
+    def get_feature_importance(self) -> Optional[Dict[str, float]]:
+        """
+        Get aggregated feature importance from all per-feature attention networks in ensemble
+        
+        Returns:
+            Dictionary mapping feature names to average importance scores across attention networks,
+            None if no attention networks in ensemble
+        """
+        attention_networks = []
+        for network in self.networks:
+            if isinstance(network.state_encoder, PerFeatureAttentionEncoder):
+                importance = network.state_encoder.get_feature_importance()
+                if importance:
+                    attention_networks.append(importance)
+        
+        if not attention_networks:
+            return None
+        
+        # Average importance scores across ensemble
+        aggregated_importance = {}
+        feature_names = attention_networks[0].keys()
+        for feature in feature_names:
+            scores = [importance[feature] for importance in attention_networks]
+            aggregated_importance[feature] = sum(scores) / len(scores)
+        
+        return aggregated_importance
+    
+    def get_attention_summary(self) -> Optional[Dict[str, any]]:
+        """
+        Get aggregated attention analysis from all per-feature attention networks in ensemble
+        
+        Returns:
+            Dictionary with ensemble-averaged attention patterns, regime indicators, etc.,
+            None if no attention networks in ensemble
+        """
+        attention_summaries = []
+        for network in self.networks:
+            if isinstance(network.state_encoder, PerFeatureAttentionEncoder):
+                summary = network.state_encoder.get_attention_summary()
+                if summary:
+                    attention_summaries.append(summary)
+        
+        if not attention_summaries:
+            return None
+        
+        # Aggregate attention summaries
+        aggregated_summary = {
+            'num_attention_networks': len(attention_summaries),
+            'total_networks': len(self.networks),
+            'attention_coverage': len(attention_summaries) / len(self.networks)
+        }
+        
+        # Average numeric metrics
+        if 'vix_total_attention' in attention_summaries[0]:
+            vix_attentions = [s['vix_total_attention'] for s in attention_summaries]
+            aggregated_summary['avg_vix_total_attention'] = sum(vix_attentions) / len(vix_attentions)
+        
+        if 'time_vs_wealth_ratio' in attention_summaries[0]:
+            ratios = [s['time_vs_wealth_ratio'] for s in attention_summaries]
+            aggregated_summary['avg_time_vs_wealth_ratio'] = sum(ratios) / len(ratios)
+        
+        # Consensus regime prediction (mode)
+        if 'predicted_regime' in attention_summaries[0]:
+            regimes = [s['predicted_regime'] for s in attention_summaries]
+            regime_counts = {}
+            for regime in regimes:
+                regime_counts[regime] = regime_counts.get(regime, 0) + 1
+            consensus_regime = max(regime_counts.items(), key=lambda x: x[1])
+            aggregated_summary['consensus_regime'] = consensus_regime[0]
+            aggregated_summary['regime_confidence'] = consensus_regime[1] / len(regimes)
+        
+        # Include feature importance from aggregated method
+        aggregated_summary['feature_importance'] = self.get_feature_importance()
+        
+        return aggregated_summary
 
 
 def create_sentiment_value_network(
@@ -474,6 +609,95 @@ def test_sentiment_value_networks():
         # Check that gradients exist
         assert test_state.grad is not None, "No gradients computed for input"
         print("✓ Gradient flow test passed")
+        
+        # Test per-feature attention value networks
+        state_5d = torch.randn(batch_size, 5)  # [time, wealth, vix_level, vix_avg, vix_momentum]
+        
+        # Test standard value network with per-feature attention
+        pfa_value_net = SentimentAwareValueNetwork(
+            state_dim=5,
+            encoder_type="per_feature_attention",
+            hidden_dim=64
+        )
+        
+        pfa_values = pfa_value_net.forward(state_5d)
+        assert pfa_values.shape == (batch_size,), f"Wrong PFA values shape: {pfa_values.shape}"
+        print("✓ Per-feature attention value network forward pass test passed")
+        
+        # Test dual-head value network with per-feature attention
+        pfa_dual_net = DualHeadValueNetwork(
+            state_dim=5,
+            encoder_type="per_feature_attention"
+        )
+        
+        pfa_dual_values = pfa_dual_net.forward(state_5d)
+        assert pfa_dual_values.shape == (batch_size,), f"Wrong PFA dual values shape: {pfa_dual_values.shape}"
+        
+        # Test attention features in dual-head
+        assert pfa_dual_net.has_attention_encoder(), "Dual-head network should detect per-feature attention encoder"
+        
+        dual_attention_weights = pfa_dual_net.get_attention_weights()
+        assert dual_attention_weights is not None, "Dual-head network should return attention weights"
+        assert dual_attention_weights.shape == (5, 5), f"Wrong dual-head attention weights shape: {dual_attention_weights.shape}"
+        
+        dual_feature_importance = pfa_dual_net.get_feature_importance()
+        assert dual_feature_importance is not None, "Dual-head network should return feature importance"
+        expected_features = ['time', 'wealth', 'vix_level', 'vix_avg', 'vix_momentum']
+        assert all(feat in dual_feature_importance for feat in expected_features), "Missing features in dual-head importance"
+        
+        dual_attention_summary = pfa_dual_net.get_attention_summary()
+        assert dual_attention_summary is not None, "Dual-head network should return attention summary"
+        assert 'predicted_regime' in dual_attention_summary, "Missing regime prediction in dual-head"
+        
+        print("✓ Dual-head value network with per-feature attention test passed")
+        
+        # Test ensemble value network with per-feature attention
+        pfa_ensemble_net = EnsembleValueNetwork(
+            state_dim=5,
+            encoder_type="per_feature_attention",
+            num_networks=3
+        )
+        
+        pfa_ensemble_values = pfa_ensemble_net.forward(state_5d)
+        assert pfa_ensemble_values.shape == (batch_size,), f"Wrong PFA ensemble values shape: {pfa_ensemble_values.shape}"
+        
+        # Test attention features in ensemble
+        assert pfa_ensemble_net.has_attention_encoder(), "Ensemble network should detect per-feature attention encoders"
+        
+        ensemble_attention_weights = pfa_ensemble_net.get_attention_weights()
+        assert ensemble_attention_weights is not None, "Ensemble network should return attention weights"
+        assert ensemble_attention_weights.shape == (5, 5), f"Wrong ensemble attention weights shape: {ensemble_attention_weights.shape}"
+        
+        ensemble_feature_importance = pfa_ensemble_net.get_feature_importance()
+        assert ensemble_feature_importance is not None, "Ensemble network should return aggregated feature importance"
+        assert all(feat in ensemble_feature_importance for feat in expected_features), "Missing features in ensemble importance"
+        
+        ensemble_attention_summary = pfa_ensemble_net.get_attention_summary()
+        assert ensemble_attention_summary is not None, "Ensemble network should return aggregated attention summary"
+        assert 'consensus_regime' in ensemble_attention_summary, "Missing consensus regime in ensemble"
+        assert 'attention_coverage' in ensemble_attention_summary, "Missing attention coverage in ensemble"
+        
+        print("✓ Ensemble value network with per-feature attention test passed")
+        
+        # Test factory function with per-feature attention
+        pfa_networks = [
+            create_sentiment_value_network("standard", state_dim=5, encoder_type="per_feature_attention"),
+            create_sentiment_value_network("dual_head", state_dim=5, encoder_type="per_feature_attention"),
+            create_sentiment_value_network("ensemble", state_dim=5, encoder_type="per_feature_attention")
+        ]
+        
+        # Verify all networks support attention
+        for i, network in enumerate(pfa_networks):
+            assert hasattr(network, 'has_attention_encoder'), f"Network {i} missing attention interface"
+            
+            # Run forward pass to generate attention
+            _ = network(state_5d)
+            
+            assert network.has_attention_encoder(), f"Network {i} should have attention encoder"
+            attention_weights = network.get_attention_weights()
+            assert attention_weights is not None, f"Network {i} should return attention weights"
+            
+        print("✓ Per-feature attention value network factory test passed")
         
         print("All sentiment value network tests passed! ✓")
         return True

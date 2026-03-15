@@ -563,7 +563,7 @@ class SentimentRLEvaluator:
             # Pure RL has 2D state, so must use 'simple' encoder (feature/attention require VIX)
             # Policy and value types can still match Sentiment RL for fair comparison
             pure_rl_encoder = self.config.pure_rl_encoder_type
-            if pure_rl_encoder in ['feature', 'attention', 'adaptive']:
+            if pure_rl_encoder in ['feature', 'attention', 'adaptive', 'per_feature_attention']:
                 logger.info(f"  Note: '{pure_rl_encoder}' encoder requires VIX features. Using 'simple' for Pure RL.")
                 pure_rl_encoder = 'simple'
 
